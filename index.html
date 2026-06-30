@@ -1,0 +1,1959 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ApexCare Enterprise Hospital Management System</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- html2pdf for CSS-Styled PDF Generation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'sans-serif'] },
+                    colors: { primary: '#2563eb', secondary: '#475569' }
+                }
+            }
+        }
+    </script>
+    <style>
+        .custom-scrollbar::-webkit-scrollbar { width: 8px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 8px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #64748b; }
+        .view-section { display: none; }
+        .view-section.active { display: block; animation: fadeIn 0.3s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .blink { animation: blinker 1.5s linear infinite; }
+        @keyframes blinker { 50% { opacity: 0; } }
+        /* Chatbot Animations */
+        .chat-open { transform: scale(1) !important; opacity: 1 !important; pointer-events: auto !important; }
+        .typing-dot { animation: typing 1.4s infinite ease-in-out both; }
+        .typing-dot:nth-child(1) { animation-delay: -0.32s; }
+        .typing-dot:nth-child(2) { animation-delay: -0.16s; }
+        @keyframes typing { 0%, 80%, 100% { transform: scale(0); } 40% { transform: scale(1); } }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans h-screen overflow-hidden relative">
+
+    <!-- GLOBAL MODAL OVERLAY -->
+    <div id="global-modal" class="fixed inset-0 bg-slate-900/60 z-[200] hidden items-center justify-center p-4 print:hidden backdrop-blur-sm transition-opacity">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden transform transition-all scale-100">
+            <div class="p-5 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                <h3 id="modal-title" class="font-bold text-lg text-slate-800">Title</h3>
+                <button onclick="closeModal()" class="text-slate-400 hover:text-rose-500 transition-colors"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+            <div id="modal-body" class="p-6 space-y-4 max-h-[70vh] overflow-y-auto custom-scrollbar">
+                <!-- Dynamic Content injected here -->
+            </div>
+            <div class="p-5 border-t border-slate-100 bg-slate-50 flex justify-end gap-3">
+                <button onclick="closeModal()" class="px-5 py-2.5 text-slate-600 font-bold hover:bg-slate-200 rounded-lg transition-colors text-sm">Cancel</button>
+                <button id="modal-confirm-btn" class="px-5 py-2.5 bg-blue-600 text-white font-bold rounded-lg shadow hover:bg-blue-700 transition-colors text-sm">Confirm</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- AI CHATBOT WIDGET -->
+    <button onclick="toggleChatbot()" class="fixed bottom-6 right-6 w-14 h-14 bg-blue-600 rounded-full text-white shadow-2xl flex items-center justify-center hover:bg-blue-700 transition-transform hover:scale-105 z-[150] print:hidden">
+        <i data-lucide="message-square" class="w-6 h-6"></i>
+    </button>
+
+    <div id="chatbot-window" class="fixed bottom-24 right-6 w-80 sm:w-96 bg-white rounded-2xl shadow-2xl border border-slate-100 flex-col z-[150] overflow-hidden transition-all duration-300 origin-bottom-right scale-0 opacity-0 pointer-events-none print:hidden flex">
+        <div class="bg-blue-600 text-white p-4 flex justify-between items-center">
+            <div class="flex items-center gap-2"><i data-lucide="bot" class="w-5 h-5"></i><span class="font-bold">ApexCare AI Support</span></div>
+            <button onclick="toggleChatbot()" class="text-blue-200 hover:text-white"><i data-lucide="x" class="w-4 h-4"></i></button>
+        </div>
+        <div id="chatbot-messages" class="flex-1 p-4 h-80 overflow-y-auto bg-slate-50 flex flex-col gap-3 text-sm custom-scrollbar">
+            <div class="bg-white border border-slate-200 text-slate-700 p-3 rounded-xl rounded-tl-none self-start shadow-sm max-w-[85%]">
+                Hello! I'm your ApexCare AI virtual assistant. How can I help you navigate the system or answer your questions today?
+            </div>
+        </div>
+        <div class="p-3 bg-white border-t border-slate-100 flex gap-2">
+            <input type="text" id="chatbot-input" onkeypress="handleChatKeypress(event)" placeholder="Type your message..." class="flex-1 border border-slate-200 p-2.5 rounded-lg outline-none focus:border-blue-500 text-sm">
+            <button onclick="sendChatMessage()" class="bg-blue-600 text-white p-2.5 rounded-lg hover:bg-blue-700 transition-colors"><i data-lucide="send" class="w-4 h-4"></i></button>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- 1. PUBLIC WEBSITE LAYOUT -->
+    <!-- ========================================== -->
+    <div id="public-layout" class="hidden flex-col h-full bg-slate-50 w-full overflow-y-auto custom-scrollbar relative scroll-smooth">
+        <!-- Unified Public Navbar -->
+        <nav class="flex items-center justify-between px-8 py-4 bg-white border-b border-slate-100 shadow-sm sticky top-0 z-50">
+            <div class="flex items-center gap-2 cursor-pointer" onclick="navigate('landing')">
+                <div class="p-2 bg-blue-600 rounded-lg text-white"><i data-lucide="activity"></i></div>
+                <span class="text-xl font-bold text-slate-900">ApexCare HMS</span>
+            </div>
+            <div class="hidden md:flex gap-6 text-sm">
+                <a href="javascript:void(0)" onclick="navigate('landing')" id="nav-pub-landing" class="font-medium text-slate-600 hover:text-blue-600 transition-colors">Home</a>
+                <a href="javascript:void(0)" onclick="navigate('departments')" id="nav-pub-departments" class="font-medium text-slate-600 hover:text-blue-600 transition-colors">Departments & Doctors</a>
+                <a href="javascript:void(0)" onclick="navigate('contact')" id="nav-pub-contact" class="font-medium text-slate-600 hover:text-blue-600 transition-colors">Contact Us</a>
+            </div>
+            <div id="public-nav-auth" class="flex items-center">
+                <!-- Injected dynamically based on Auth State -->
+            </div>
+        </nav>
+        
+        <main id="public-content" class="flex-1 relative w-full">
+            <!-- Landing View -->
+            <div id="landing" class="view-section active w-full">
+                <section class="py-24 px-8 bg-slate-900 text-white text-center relative overflow-hidden">
+                    <div class="absolute inset-0 opacity-20 bg-[url('https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?auto=format&fit=crop&q=80')] bg-cover bg-center"></div>
+                    <div class="relative z-10 max-w-3xl mx-auto">
+                        <h1 class="text-5xl font-extrabold mb-6 leading-tight">Advanced Healthcare Management Redefined</h1>
+                        <p class="text-lg text-slate-300 mb-8">Integrated enterprise system with Smart Workflow Automation across 20 interconnected departments.</p>
+                        <button onclick="navigate('login-patient')" class="px-8 py-4 bg-blue-600 rounded-xl font-bold hover:bg-blue-500 shadow-lg flex items-center justify-center mx-auto transition-transform hover:scale-105">
+                            Access Patient Portal <i data-lucide="arrow-right" class="ml-2 w-5 h-5"></i>
+                        </button>
+                    </div>
+                </section>
+
+                <section class="py-16 px-8 max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-8">
+                    <div class="text-center p-6 bg-slate-50 rounded-2xl border border-slate-100 shadow-sm">
+                        <div class="w-16 h-16 bg-blue-100 text-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-4"><i data-lucide="stethoscope" class="w-8 h-8"></i></div>
+                        <h3 class="text-xl font-bold mb-2">Expert Doctors</h3>
+                        <p class="text-slate-500 text-sm">Access top-tier medical professionals across multiple specialized departments.</p>
+                    </div>
+                    <div class="text-center p-6 bg-slate-50 rounded-2xl border border-slate-100 shadow-sm">
+                        <div class="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-2xl flex items-center justify-center mx-auto mb-4"><i data-lucide="flask-conical" class="w-8 h-8"></i></div>
+                        <h3 class="text-xl font-bold mb-2">Smart Diagnostics</h3>
+                        <p class="text-slate-500 text-sm">Fully integrated Laboratory and Radiology departments with instant automated reporting.</p>
+                    </div>
+                    <div class="text-center p-6 bg-slate-50 rounded-2xl border border-slate-100 shadow-sm">
+                        <div class="w-16 h-16 bg-purple-100 text-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-4"><i data-lucide="shield-check" class="w-8 h-8"></i></div>
+                        <h3 class="text-xl font-bold mb-2">Secure Records</h3>
+                        <p class="text-slate-500 text-sm">Enterprise-grade security ensuring your medical data is safe and easily accessible.</p>
+                    </div>
+                </section>
+            </div>
+
+            <!-- Departments View -->
+            <div id="departments" class="view-section w-full py-12 px-6 max-w-7xl mx-auto">
+                <div class="text-center mb-12">
+                    <h2 class="text-4xl font-black text-slate-900 mb-4">Our Medical Departments & Specialists</h2>
+                    <p class="text-slate-500 max-w-2xl mx-auto">Discover our world-class medical professionals categorized by their specialties. We are committed to providing the best care for you.</p>
+                </div>
+                <div class="mb-12">
+                    <h3 class="text-2xl font-bold text-blue-900 mb-6 flex items-center border-b border-blue-200 pb-2"><i data-lucide="heart-pulse" class="w-6 h-6 mr-3 text-rose-500"></i> Cardiology Department</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex items-center gap-4 hover:shadow-md transition-shadow">
+                            <div class="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center text-blue-700 font-bold text-xl flex-shrink-0">SS</div>
+                            <div><h4 class="font-bold text-lg">Dr. Sarah Smith</h4><p class="text-sm text-blue-600 font-medium">Head of Cardiology</p><p class="text-xs text-slate-500 mt-1">Specializes in Heart Failure & Echocardiography</p></div>
+                        </div>
+                        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex items-center gap-4 hover:shadow-md transition-shadow">
+                            <div class="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center text-blue-700 font-bold text-xl flex-shrink-0">JA</div>
+                            <div><h4 class="font-bold text-lg">Dr. John Adams</h4><p class="text-sm text-blue-600 font-medium">Senior Cardiologist</p><p class="text-xs text-slate-500 mt-1">Specializes in Interventional Cardiology</p></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="mb-12">
+                    <h3 class="text-2xl font-bold text-blue-900 mb-6 flex items-center border-b border-blue-200 pb-2"><i data-lucide="brain" class="w-6 h-6 mr-3 text-purple-500"></i> Neurology Department</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex items-center gap-4 hover:shadow-md transition-shadow">
+                            <div class="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center text-purple-700 font-bold text-xl flex-shrink-0">EC</div>
+                            <div><h4 class="font-bold text-lg">Dr. Emily Chen</h4><p class="text-sm text-purple-600 font-medium">Head of Neurology</p><p class="text-xs text-slate-500 mt-1">Specializes in Stroke & Multiple Sclerosis</p></div>
+                        </div>
+                        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex items-center gap-4 hover:shadow-md transition-shadow">
+                            <div class="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center text-purple-700 font-bold text-xl flex-shrink-0">MW</div>
+                            <div><h4 class="font-bold text-lg">Dr. Michael Wong</h4><p class="text-sm text-purple-600 font-medium">Neurologist</p><p class="text-xs text-slate-500 mt-1">Specializes in Epilepsy & Movement Disorders</p></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="mb-12">
+                    <h3 class="text-2xl font-bold text-blue-900 mb-6 flex items-center border-b border-blue-200 pb-2"><i data-lucide="bone" class="w-6 h-6 mr-3 text-emerald-500"></i> Orthopedics Department</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex items-center gap-4 hover:shadow-md transition-shadow">
+                            <div class="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center text-emerald-700 font-bold text-xl flex-shrink-0">RT</div>
+                            <div><h4 class="font-bold text-lg">Dr. Robert Taylor</h4><p class="text-sm text-emerald-600 font-medium">Orthopedic Surgeon</p><p class="text-xs text-slate-500 mt-1">Specializes in Joint Replacement Surgery</p></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Contact View -->
+            <div id="contact" class="view-section w-full py-20 px-6">
+                <div class="bg-white p-8 md:p-12 rounded-2xl shadow-lg border border-slate-200 max-w-xl mx-auto w-full">
+                    <div class="text-center mb-8">
+                        <div class="w-16 h-16 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4"><i data-lucide="mail" class="w-8 h-8"></i></div>
+                        <h2 class="text-3xl font-black text-slate-900">Get in Touch</h2>
+                        <p class="text-slate-500 mt-2">Have a question or need assistance? Send us an email directly.</p>
+                    </div>
+                    <form onsubmit="handleContactSubmit(event)" class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-bold text-slate-700 mb-1">Your Name</label>
+                            <input type="text" id="contact-name" required class="w-full border border-slate-300 p-3 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-bold text-slate-700 mb-1">Subject</label>
+                            <input type="text" id="contact-subject" required class="w-full border border-slate-300 p-3 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-bold text-slate-700 mb-1">Message</label>
+                            <textarea id="contact-message" required rows="5" class="w-full border border-slate-300 p-3 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all"></textarea>
+                        </div>
+                        <button type="submit" class="w-full bg-blue-600 text-white font-bold py-3.5 rounded-lg shadow-md hover:bg-blue-700 transition-colors mt-4 flex justify-center items-center gap-2">
+                            <i data-lucide="send" class="w-4 h-4"></i> Send Email
+                        </button>
+                        <p class="text-center text-xs text-slate-500 mt-4">This will open your default mail client addressed to <br><strong class="text-slate-700">usamazakir5033@gmail.com</strong></p>
+                    </form>
+                </div>
+            </div>
+        </main>
+
+        <!-- Unified Public Footer -->
+        <footer class="bg-slate-900 text-slate-400 py-12 px-8 border-t border-slate-800 w-full mt-auto">
+            <div class="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-8">
+                <div>
+                    <h4 class="text-white font-bold text-lg mb-4 flex items-center gap-2"><i data-lucide="activity" class="text-blue-500"></i> ApexCare</h4>
+                    <p class="text-sm">Delivering excellence in healthcare management through integrated, smart enterprise solutions.</p>
+                </div>
+                <div>
+                    <h4 class="text-white font-bold mb-4">Quick Links</h4>
+                    <ul class="space-y-2 text-sm">
+                        <li><a href="javascript:void(0)" onclick="navigate('landing')" class="hover:text-white transition-colors">Home</a></li>
+                        <li><a href="javascript:void(0)" onclick="navigate('departments')" class="hover:text-white transition-colors">Departments & Doctors</a></li>
+                        <li><a href="javascript:void(0)" onclick="navigate('contact')" class="hover:text-white transition-colors">Contact Us</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h4 class="text-white font-bold mb-4">Portals</h4>
+                    <ul class="space-y-2 text-sm">
+                        <li><a href="javascript:void(0)" onclick="navigate('login-patient')" class="hover:text-white transition-colors">Patient Login</a></li>
+                        <li><a href="javascript:void(0)" onclick="navigate('signup-patient')" class="hover:text-white transition-colors">Register as Patient</a></li>
+                        <li><a href="javascript:void(0)" onclick="navigate('login-staff')" class="hover:text-white transition-colors">Staff Login</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h4 class="text-white font-bold mb-4">Contact Info</h4>
+                    <ul class="space-y-2 text-sm">
+                        <li class="flex items-center gap-2"><i data-lucide="mail" class="w-4 h-4"></i> usamazakir5033@gmail.com</li>
+                        <li class="flex items-center gap-2"><i data-lucide="phone" class="w-4 h-4"></i> +1 (555) 123-4567</li>
+                        <li class="flex items-center gap-2"><i data-lucide="map-pin" class="w-4 h-4"></i> 123 Health Ave, Medical District</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="max-w-6xl mx-auto text-center mt-12 pt-8 border-t border-slate-800 text-sm">
+                &copy; 2026 ApexCare Enterprise Hospital Management System. All rights reserved.
+            </div>
+        </footer>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- 2. AUTHENTICATION LAYOUT (Completely Separate) -->
+    <!-- ========================================== -->
+    <div id="auth-layout" class="hidden min-h-screen bg-slate-100 items-center justify-center p-6 relative w-full overflow-y-auto custom-scrollbar">
+        <button onclick="navigate('landing')" class="absolute top-6 left-6 text-slate-500 hover:text-slate-800 font-bold flex items-center gap-2 z-10"><i data-lucide="arrow-left" class="w-4 h-4"></i> Back to Website</button>
+        
+        <!-- PATIENT LOGIN VIEW -->
+        <div id="login-patient" class="view-section w-full max-w-md">
+            <div class="bg-white p-8 rounded-2xl shadow-xl border border-slate-200 w-full">
+                <div class="text-center mb-8">
+                    <div class="w-14 h-14 bg-blue-600 text-white rounded-xl flex items-center justify-center mx-auto mb-4 shadow"><i data-lucide="user" class="w-7 h-7"></i></div>
+                    <h2 class="text-2xl font-black text-slate-900">Patient Portal</h2>
+                    <p class="text-sm text-slate-500 mt-1">Sign in to access your medical records</p>
+                </div>
+                <form onsubmit="handlePatientLogin(event)" class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-bold text-slate-700 mb-1">Email Address</label>
+                        <input type="email" required class="w-full border border-slate-300 p-3 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" placeholder="emma@example.com">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold text-slate-700 mb-1">Password</label>
+                        <input type="password" required class="w-full border border-slate-300 p-3 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" placeholder="••••••••">
+                    </div>
+                    <button type="submit" class="w-full bg-blue-600 text-white font-bold py-3 rounded-lg shadow hover:bg-blue-700 transition-colors mt-2">Sign In</button>
+                </form>
+                <p class="text-center text-sm text-slate-500 mt-6">Don't have an account? <button onclick="navigate('signup-patient')" class="text-blue-600 font-bold hover:underline">Sign Up</button></p>
+            </div>
+        </div>
+
+        <!-- PATIENT SIGNUP VIEW -->
+        <div id="signup-patient" class="view-section w-full max-w-md">
+            <div class="bg-white p-8 rounded-2xl shadow-xl border border-slate-200 w-full">
+                <div class="text-center mb-8">
+                    <div class="w-14 h-14 bg-emerald-600 text-white rounded-xl flex items-center justify-center mx-auto mb-4 shadow"><i data-lucide="user-plus" class="w-7 h-7"></i></div>
+                    <h2 class="text-2xl font-black text-slate-900">Create Account</h2>
+                    <p class="text-sm text-slate-500 mt-1">Register to access ApexCare services</p>
+                </div>
+                <form onsubmit="handlePatientSignup(event)" class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-bold text-slate-700 mb-1">Full Name</label>
+                        <input type="text" required class="w-full border border-slate-300 p-3 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none" placeholder="Emma Watson">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold text-slate-700 mb-1">Email Address</label>
+                        <input type="email" required class="w-full border border-slate-300 p-3 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none" placeholder="emma@example.com">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold text-slate-700 mb-1">Strong Password</label>
+                        <input type="password" required pattern="(?=.*\d)(?=.*[a-z])(?=.*[A-Z])(?=.*[\W_]).{8,}" title="Password must contain at least 8 characters, including uppercase, lowercase, numbers, and special characters." class="w-full border border-slate-300 p-3 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none" placeholder="••••••••">
+                        <p class="text-[10px] text-slate-500 mt-1">Min 8 chars, 1 uppercase, 1 lowercase, 1 number, 1 special character.</p>
+                    </div>
+                    <button type="submit" class="w-full bg-emerald-600 text-white font-bold py-3 rounded-lg shadow hover:bg-emerald-700 transition-colors mt-2">Create Account</button>
+                </form>
+                <p class="text-center text-sm text-slate-500 mt-6">Already have an account? <button onclick="navigate('login-patient')" class="text-emerald-600 font-bold hover:underline">Log In</button></p>
+            </div>
+        </div>
+
+        <!-- STAFF LOGIN VIEW -->
+        <div id="login-staff" class="view-section w-full max-w-md">
+            <div class="absolute inset-0 bg-slate-900 -z-10 rounded-2xl overflow-hidden shadow-2xl">
+                 <div class="absolute inset-0 opacity-10 bg-[url('https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?auto=format&fit=crop&q=80')] bg-cover bg-center"></div>
+            </div>
+            
+            <div class="bg-slate-800 p-8 rounded-2xl shadow-2xl border border-slate-700 w-full relative z-10">
+                <div class="text-center mb-8">
+                    <div class="w-14 h-14 bg-slate-700 text-blue-400 border border-slate-600 rounded-xl flex items-center justify-center mx-auto mb-4 shadow"><i data-lucide="shield-check" class="w-7 h-7"></i></div>
+                    <h2 class="text-2xl font-black text-white">Staff Authentication</h2>
+                    <p class="text-sm text-slate-400 mt-1">Authorized personnel only.</p>
+                </div>
+                <form onsubmit="handleStaffLogin(event)" class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-bold text-slate-300 mb-1">Select Assigned Role</label>
+                        <select id="staff-role-select" class="w-full border border-slate-600 bg-slate-700 text-white p-3 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                            <option value="admin">System Admin</option>
+                            <option value="superadmin">Super Admin</option>
+                            <option value="doctor">Doctor</option>
+                            <option value="nurse">Nurse / Ward Management</option>
+                            <option value="reception">Receptionist</option>
+                            <option value="pharmacy">Pharmacist</option>
+                            <option value="laboratory">Laboratory Technician</option>
+                            <option value="radiology">Radiology / Imaging</option>
+                            <option value="finance">Finance / Billing</option>
+                            <option value="emergency">Emergency Responder</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold text-slate-300 mb-1">Admin Assigned Staff ID</label>
+                        <input type="text" id="staff-id-input" required class="w-full border border-slate-600 bg-slate-700 text-white p-3 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" placeholder="STF-001">
+                        <p class="text-[10px] text-slate-400 mt-1">Staff accounts cannot be created manually. Use assigned ID.</p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold text-slate-300 mb-1">Password</label>
+                        <input type="password" required class="w-full border border-slate-600 bg-slate-700 text-white p-3 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" placeholder="••••••••">
+                    </div>
+                    <button type="submit" class="w-full bg-blue-600 text-white font-bold py-3 rounded-lg shadow hover:bg-blue-500 transition-colors mt-2 border border-blue-500">Authenticate Securely</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- 3. DASHBOARD LAYOUT (Protected Routes) -->
+    <!-- ========================================== -->
+    <div id="dashboard-layout" class="hidden h-screen w-full flex overflow-hidden">
+        
+        <!-- SIDEBAR -->
+        <aside id="app-sidebar" class="w-64 bg-slate-900 text-slate-300 flex-shrink-0 hidden md:flex flex-col h-full transition-all duration-300 shadow-xl z-20">
+            <div class="h-16 flex items-center px-6 border-b border-slate-800 bg-slate-950">
+                <i data-lucide="activity" class="text-blue-500 mr-3"></i>
+                <span class="text-white font-bold text-lg tracking-wide">ApexCare</span>
+            </div>
+            <div class="flex-1 overflow-y-auto custom-scrollbar py-4 px-3 space-y-1" id="nav-links">
+                <!-- Nav links generated by JS -->
+            </div>
+            <div class="p-4 border-t border-slate-800">
+                <button onclick="navigate('landing')" class="flex items-center w-full px-4 py-2 text-sm text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors">
+                    <i data-lucide="globe" class="w-4 h-4 mr-3 pointer-events-none"></i> <span class="pointer-events-none">Back to Website</span>
+                </button>
+            </div>
+        </aside>
+
+        <!-- MAIN CONTENT WRAPPER -->
+        <div class="flex-1 flex flex-col h-full overflow-hidden relative">
+            
+            <!-- HEADER -->
+            <header id="app-header" class="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-6 z-10 shadow-sm">
+                <div class="flex items-center">
+                    <button onclick="toggleSidebar()" class="md:hidden text-slate-500 hover:text-slate-700 mr-4">
+                        <i data-lucide="menu"></i>
+                    </button>
+                    <h2 id="current-dashboard-title" class="text-xl font-bold text-slate-800">Dashboard</h2>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <div id="system-time" class="text-sm font-medium text-slate-500 hidden sm:block"></div>
+                    <button onclick="showToast('No critical alerts.')" class="text-slate-400 hover:text-blue-600 relative">
+                        <i data-lucide="bell"></i>
+                        <span class="absolute top-0 right-0 w-2 h-2 bg-rose-500 rounded-full"></span>
+                    </button>
+                    <div class="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-sm cursor-pointer shadow-sm relative group">
+                        <i data-lucide="user" class="w-4 h-4"></i>
+                        <div class="absolute hidden group-hover:flex flex-col right-0 top-8 bg-white border border-slate-200 shadow-xl rounded-lg p-2 min-w-32 z-50">
+                            <button onclick="handleLogout()" class="text-rose-600 text-left text-xs font-bold p-2 hover:bg-slate-50 rounded">Logout</button>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <!-- SCROLLABLE DASHBOARD CONTENT AREA -->
+            <main id="main-content" class="flex-1 overflow-y-auto bg-slate-50 relative custom-scrollbar">
+
+                <!-- 2. ADMIN DASHBOARD -->
+                <div id="admin" class="view-section p-6 space-y-6">
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                        <button onclick="showAddPatientModal()" class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 hover:border-blue-500 flex items-center gap-3"><i data-lucide="user-plus" class="text-blue-600"></i> <span class="font-bold">Add New Patient</span></button>
+                        <button onclick="showAddDoctorModal()" class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 hover:border-emerald-500 flex items-center gap-3"><i data-lucide="stethoscope" class="text-emerald-600"></i> <span class="font-bold">Add New Doctor</span></button>
+                        <button onclick="showAddNurseModal()" class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 hover:border-purple-500 flex items-center gap-3"><i data-lucide="heart" class="text-purple-600"></i> <span class="font-bold">Add New Nurse</span></button>
+                        <button onclick="showAddWardModal()" class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 hover:border-amber-500 flex items-center gap-3"><i data-lucide="bed-double" class="text-amber-600"></i> <span class="font-bold">Add New Ward</span></button>
+                    </div>
+                    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+                        <h3 class="font-bold mb-4 text-lg">Hospital Management Core</h3>
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                            <div onclick="showToast('Role assignments opened')" class="p-3 bg-slate-50 border rounded hover:bg-slate-100 cursor-pointer text-sm font-medium">Assign Doctor Roles</div>
+                            <div onclick="showToast('Department configuration opened')" class="p-3 bg-slate-50 border rounded hover:bg-slate-100 cursor-pointer text-sm font-medium">Assign Departments</div>
+                            <div onclick="showToast('Token system settings opened')" class="p-3 bg-slate-50 border rounded hover:bg-slate-100 cursor-pointer text-sm font-medium">Manage Token System</div>
+                            <div onclick="showToast('Access control opened')" class="p-3 bg-slate-50 border rounded hover:bg-slate-100 cursor-pointer text-sm font-medium">Manage Permissions</div>
+                            <div onclick="showToast('Loading comprehensive doctor list...')" class="p-3 bg-slate-50 border rounded hover:bg-slate-100 cursor-pointer text-sm font-medium">View All Doctors</div>
+                            <div onclick="showToast('Loading comprehensive patient directory...')" class="p-3 bg-slate-50 border rounded hover:bg-slate-100 cursor-pointer text-sm font-medium">View All Patients</div>
+                            <div onclick="showToast('Loading nursing staff directory...')" class="p-3 bg-slate-50 border rounded hover:bg-slate-100 cursor-pointer text-sm font-medium">View All Nurses</div>
+                            <div onclick="showToast('Opening global hospital settings...')" class="p-3 bg-slate-50 border rounded hover:bg-slate-100 cursor-pointer text-sm font-medium">Hospital Settings</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 3. SUPER ADMIN DASHBOARD -->
+                <div id="superadmin" class="view-section p-6 space-y-6">
+                    <div class="bg-slate-900 rounded-xl p-6 text-white flex justify-between items-center shadow-lg border-l-4 border-purple-500">
+                        <div>
+                            <h2 class="text-2xl font-bold flex items-center"><i data-lucide="shield-alert" class="mr-2 text-purple-400"></i> Super Admin Control Center</h2>
+                            <p class="text-slate-400 text-sm mt-1">Complete system access & multi-branch management.</p>
+                        </div>
+                        <span class="px-3 py-1 bg-emerald-900/50 text-emerald-400 border border-emerald-700 rounded-full text-sm font-medium flex items-center gap-2"><div class="w-2 h-2 rounded-full bg-emerald-400 blink"></div> System Healthy</span>
+                    </div>
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 space-y-3">
+                            <h3 class="font-bold border-b pb-2 mb-4">Rank & Promotions</h3>
+                            <button onclick="promptPromoteDoctor()" class="w-full text-left p-3 hover:bg-slate-50 border border-slate-100 rounded text-sm"><i data-lucide="arrow-up-circle" class="inline w-4 h-4 mr-2 text-emerald-600"></i> Promote Doctor Rank</button>
+                            <button onclick="promptPromoteNurse()" class="w-full text-left p-3 hover:bg-slate-50 border border-slate-100 rounded text-sm"><i data-lucide="arrow-up-circle" class="inline w-4 h-4 mr-2 text-emerald-600"></i> Promote Nurse Rank</button>
+                            <button onclick="promptAssignHOD()" class="w-full text-left p-3 hover:bg-slate-50 border border-slate-100 rounded text-sm"><i data-lucide="award" class="inline w-4 h-4 mr-2 text-amber-600"></i> Assign User Roles (HOD)</button>
+                        </div>
+                        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 space-y-3">
+                            <h3 class="font-bold border-b pb-2 mb-4">Infrastructure & Logs</h3>
+                            <button onclick="showToast('Opening Branch Network map...')" class="w-full text-left p-3 hover:bg-slate-50 border border-slate-100 rounded text-sm"><i data-lucide="network" class="inline w-4 h-4 mr-2 text-blue-600"></i> Manage Hospital Branches</button>
+                            <button onclick="showToast('Department configuration updated')" class="w-full text-left p-3 hover:bg-slate-50 border border-slate-100 rounded text-sm"><i data-lucide="layers" class="inline w-4 h-4 mr-2 text-blue-600"></i> Add/Remove Departments</button>
+                            <button onclick="showToast('Fetching System Audit Logs...')" class="w-full text-left p-3 hover:bg-slate-50 border border-slate-100 rounded text-sm"><i data-lucide="terminal" class="inline w-4 h-4 mr-2 text-slate-600"></i> System Logs & Security</button>
+                        </div>
+                        <div class="bg-slate-100 rounded-xl shadow-inner border border-slate-200 p-6 flex flex-col justify-center items-center text-center">
+                            <i data-lucide="hard-drive-download" class="w-12 h-12 text-slate-400 mb-4"></i>
+                            <h3 class="font-bold mb-2">Disaster Recovery</h3>
+                            <p class="text-xs text-slate-500 mb-4">Last backup: 10 mins ago (Okara Server)</p>
+                            <button onclick="showToast('Manual Backup & DB Snapshot initiated. Processing...')" class="px-6 py-2 bg-slate-800 text-white rounded font-bold shadow hover:bg-slate-700">Backup & Restore DB</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 4. PATIENT DASHBOARD -->
+                <div id="patient" class="view-section p-6 space-y-6">
+                    <div class="bg-blue-600 rounded-xl p-6 text-white flex flex-col md:flex-row justify-between items-center shadow-lg relative overflow-hidden">
+                        <div class="absolute right-0 top-0 opacity-10"><i data-lucide="user" class="w-48 h-48"></i></div>
+                        <div class="z-10">
+                            <h2 class="text-2xl font-bold mb-1">Welcome, Emma Watson</h2>
+                            <p class="text-blue-100 text-sm">Patient ID: PT-2026-901 | Medical History: Linked</p>
+                        </div>
+                        <div class="z-10 mt-4 md:mt-0 flex gap-2">
+                            <button onclick="document.getElementById('appointment-modal').classList.remove('hidden')" class="bg-white text-blue-600 px-4 py-2 rounded font-bold shadow hover:bg-blue-50">Book Appointment</button>
+                        </div>
+                    </div>
+
+                    <!-- Appointment Modal -->
+                    <div id="appointment-modal" class="hidden bg-white border-2 border-blue-500 rounded-xl p-6 shadow-xl mb-6">
+                        <h3 class="font-bold text-lg mb-4">Book New Consultation</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+                            <div><label class="block text-xs mb-1">Select Department</label><select class="w-full border p-2 rounded text-sm"><option>Cardiology</option><option>Neurology</option></select></div>
+                            <div><label class="block text-xs mb-1">Select Doctor</label><select class="w-full border p-2 rounded text-sm"><option>Dr. Sarah Smith</option></select></div>
+                            <div><label class="block text-xs mb-1">Select Date</label><input type="date" class="w-full border p-2 rounded text-sm"></div>
+                            <div><label class="block text-xs mb-1">Select Time</label><input type="time" class="w-full border p-2 rounded text-sm"></div>
+                        </div>
+                        <div class="flex gap-2">
+                            <button onclick="showToast('Appointment Confirmed!'); this.parentElement.parentElement.classList.add('hidden')" class="bg-blue-600 text-white px-4 py-2 rounded font-bold text-sm">Confirm Booking</button>
+                            <button onclick="this.parentElement.parentElement.classList.add('hidden')" class="bg-slate-200 px-4 py-2 rounded font-bold text-sm text-slate-700">Cancel</button>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div class="bg-white rounded-xl shadow-sm border border-slate-200">
+                            <div class="p-4 border-b border-slate-100 bg-slate-50 font-semibold flex justify-between">Medical Reports Vault <span class="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">PDFs Auto-Sync</span></div>
+                            <ul class="divide-y divide-slate-100">
+                                <li class="p-4 flex justify-between items-center hover:bg-slate-50"><div><p class="font-bold text-sm">Lab: Complete Blood Count</p><p class="text-xs text-slate-500">Today, 11:30 AM</p></div><button onclick="downloadReport('cbc', 'CBC_Report_PT901.pdf')" class="text-blue-600 px-3 py-1 bg-blue-50 rounded text-xs font-bold border border-blue-200">Download PDF</button></li>
+                                <li class="p-4 flex justify-between items-center hover:bg-slate-50"><div><p class="font-bold text-sm">Radiology: Chest X-Ray</p><p class="text-xs text-slate-500">25 Jun 2026</p></div><button onclick="downloadReport('xray', 'XRay_Report_PT901.pdf')" class="text-blue-600 px-3 py-1 bg-blue-50 rounded text-xs font-bold border border-blue-200">Download PDF</button></li>
+                                <li class="p-4 flex justify-between items-center hover:bg-slate-50"><div><p class="font-bold text-sm">Scan: Brain MRI w/ Contrast</p><p class="text-xs text-slate-500">10 Jan 2026</p></div><button onclick="downloadReport('mri_scan', 'MRI_Scan_PT901.pdf')" class="text-blue-600 px-3 py-1 bg-blue-50 rounded text-xs font-bold border border-blue-200">Download PDF</button></li>
+                            </ul>
+                        </div>
+                        <div class="space-y-6">
+                            <div class="bg-white rounded-xl shadow-sm border border-slate-200">
+                                <div class="p-4 border-b border-slate-100 bg-slate-50 font-semibold">Active Prescriptions & Billing</div>
+                                <div class="p-4 space-y-3">
+                                    <div class="flex justify-between items-center p-3 bg-emerald-50 border border-emerald-100 rounded-lg"><div><p class="font-bold text-sm">Rx: Paracetamol, Amoxicillin</p><p class="text-xs text-slate-500">Dr. Smith</p></div><button onclick="viewPrescription()" class="text-xs font-bold text-emerald-700 underline">View Rx</button></div>
+                                    <div class="flex justify-between items-center p-3 border border-slate-100 rounded-lg"><div><p class="font-bold text-sm">Invoice #INV-991</p><p class="text-xs text-slate-500">Unpaid Balance: $75.00</p></div><button onclick="navigate('finance')" class="text-xs font-bold text-blue-600 bg-blue-50 px-3 py-1.5 rounded">Pay Now</button></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 5. DOCTOR DASHBOARD -->
+                <div id="doctor" class="view-section p-6 space-y-6">
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <div class="lg:col-span-2 space-y-6">
+                            <!-- Current Patient Consult -->
+                            <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                                <div class="bg-slate-800 text-white p-4 flex justify-between items-center">
+                                    <h3 class="font-bold flex items-center gap-2"><i data-lucide="stethoscope" class="w-5 h-5"></i> Active Consultation</h3>
+                                    <span class="px-2 py-1 bg-rose-500 rounded text-xs font-bold blink">TOKEN: A-104</span>
+                                </div>
+                                <div class="p-6">
+                                    <div class="flex gap-4 items-center border-b pb-4 mb-4">
+                                        <div class="w-16 h-16 bg-blue-100 text-blue-700 rounded-full flex items-center justify-center text-xl font-black">EW</div>
+                                        <div>
+                                            <h2 class="text-2xl font-bold">Emma Watson</h2>
+                                            <p class="text-sm text-slate-500">PT-2026-901 | 36 Yrs, Female | Last Visit: 2 months ago</p>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                                        <div>
+                                            <label class="block text-xs font-bold text-slate-500 mb-1">Clinical Notes & Diagnosis</label>
+                                            <textarea class="w-full border p-2 rounded text-sm h-24 focus:ring-1 focus:ring-blue-500 outline-none" placeholder="Enter findings..."></textarea>
+                                        </div>
+                                        <div>
+                                            <label class="block text-xs font-bold text-slate-500 mb-1">Electronic Prescription</label>
+                                            <div class="flex gap-2 mb-2">
+                                                <input id="rx-input" type="text" class="flex-1 border p-2 rounded text-sm outline-none focus:border-emerald-500" placeholder="Drug name & dosage">
+                                                <button onclick="prescribeMed()" class="bg-emerald-600 text-white px-3 rounded font-bold hover:bg-emerald-700 transition-colors">Add</button>
+                                            </div>
+                                            <ul id="rx-list" class="text-sm border rounded p-2 h-12 overflow-y-auto bg-slate-50 text-slate-600"></ul>
+                                        </div>
+                                    </div>
+
+                                    <!-- Smart Workflow Order Buttons -->
+                                    <h4 class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 border-b pb-1">Smart Hospital Requisitions</h4>
+                                    <div class="flex flex-wrap gap-2">
+                                        <button onclick="orderTest('CBC', 'lab')" class="px-3 py-2 bg-purple-50 text-purple-700 text-sm rounded font-bold border border-purple-200 hover:bg-purple-100 transition-colors"><i data-lucide="flask-conical" class="inline w-4 h-4 mr-1"></i> Order CBC Lab</button>
+                                        <button onclick="orderTest('Chest X-Ray', 'rad')" class="px-3 py-2 bg-blue-50 text-blue-700 text-sm rounded font-bold border border-blue-200 hover:bg-blue-100 transition-colors"><i data-lucide="bone" class="inline w-4 h-4 mr-1"></i> Order X-Ray</button>
+                                        <button onclick="orderTest('Brain CT', 'ct')" class="px-3 py-2 bg-amber-50 text-amber-700 text-sm rounded font-bold border border-amber-200 hover:bg-amber-100 transition-colors"><i data-lucide="server" class="inline w-4 h-4 mr-1"></i> Order CT Scan</button>
+                                        <button onclick="orderTest('Spine MRI', 'mri')" class="px-3 py-2 bg-indigo-50 text-indigo-700 text-sm rounded font-bold border border-indigo-200 hover:bg-indigo-100 transition-colors"><i data-lucide="disc" class="inline w-4 h-4 mr-1"></i> Order MRI</button>
+                                    </div>
+                                    
+                                    <div class="mt-6 flex justify-end gap-3 border-t pt-4">
+                                        <button onclick="showToast('Follow-up generated in Patient Portal.')" class="px-4 py-2 text-slate-600 border border-slate-300 rounded font-bold text-sm hover:bg-slate-50 transition-colors">Generate Follow-up</button>
+                                        <button onclick="completeConsult()" class="px-6 py-2 bg-slate-900 text-white rounded font-bold text-sm shadow hover:bg-slate-800 transition-colors">Finalize & Send Orders</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Sidebar Queue & Reports -->
+                        <div class="space-y-6">
+                            <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
+                                <h4 class="font-bold text-sm border-b pb-2 mb-2">Today's Patients Queue</h4>
+                                <div class="space-y-2 text-sm">
+                                    <div class="p-2 bg-blue-50 border-l-4 border-blue-600 rounded"><span class="font-bold">A-104: Emma Watson</span> (Current)</div>
+                                    <div class="p-2 hover:bg-slate-50 rounded cursor-pointer border border-transparent transition-colors"><span class="font-medium text-slate-500">A-105:</span> John Doe</div>
+                                    <div class="p-2 hover:bg-slate-50 rounded cursor-pointer border border-transparent transition-colors"><span class="font-medium text-slate-500">A-106:</span> Alice Smith</div>
+                                </div>
+                            </div>
+                            <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
+                                <h4 class="font-bold text-sm border-b pb-2 mb-2 flex items-center justify-between">Patient Reports <span class="bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded text-[10px]">Auto-Synced</span></h4>
+                                <button onclick="downloadReport('cbc', 'Lab_Results_PT901.pdf')" class="w-full text-left p-2 hover:bg-slate-50 text-sm text-blue-600 font-medium flex items-center rounded transition-colors"><i data-lucide="file-text" class="w-4 h-4 mr-2"></i> View Latest CBC (PDF)</button>
+                                <button onclick="downloadReport('xray', 'XRay_Auto_PT901.pdf')" class="w-full text-left p-2 hover:bg-slate-50 text-sm text-blue-600 font-medium flex items-center rounded transition-colors"><i data-lucide="file-image" class="w-4 h-4 mr-2"></i> View Chest X-Ray (PDF)</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 6. RECEPTION DASHBOARD -->
+                <div id="reception" class="view-section p-6 space-y-6">
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <div class="bg-white rounded-xl shadow-sm border-2 border-blue-200 p-6">
+                            <h3 class="font-bold text-lg mb-4 text-blue-900">Patient Journey Registration</h3>
+                            <div class="space-y-4">
+                                <input type="text" placeholder="Patient Name / Mobile No." class="w-full border p-2.5 rounded bg-slate-50 outline-none focus:border-blue-500">
+                                <div class="grid grid-cols-2 gap-2">
+                                    <div><label class="block text-xs text-slate-500 mb-1">Type</label><select id="rec-type" class="w-full border p-2 rounded bg-slate-50 text-sm outline-none"><option>Walk-in</option><option>Appointment</option></select></div>
+                                    <div><label class="block text-xs text-slate-500 mb-1">Department</label><select id="rec-dept" class="w-full border p-2 rounded bg-slate-50 text-sm outline-none"><option>OPD</option><option>Laboratory</option><option>CT Scan</option><option>MRI</option></select></div>
+                                </div>
+                                <button onclick="handlePrintToken()" class="w-full bg-blue-600 text-white font-bold py-3 rounded shadow hover:bg-blue-700 flex justify-center items-center gap-2"><i data-lucide="printer"></i> Generate & Print Token</button>
+                            </div>
+                        </div>
+                        <div class="lg:col-span-2 bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+                            <div class="flex justify-between items-center mb-4">
+                                <h3 class="font-bold text-lg">Department Queues (Live)</h3>
+                                <button onclick="showToast('Patient Checked-in Successfully.')" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-sm rounded font-bold border transition-colors">Check-in Patient</button>
+                            </div>
+                            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                <div class="p-4 border border-blue-100 bg-blue-50 rounded-lg text-center"><p class="text-xs font-bold text-blue-600 uppercase">OPD</p><h4 class="text-3xl font-black text-slate-800 my-1">A-104</h4><p class="text-xs text-slate-500">Wait: 12 mins</p></div>
+                                <div class="p-4 border border-emerald-100 bg-emerald-50 rounded-lg text-center"><p class="text-xs font-bold text-emerald-600 uppercase">Lab</p><h4 class="text-3xl font-black text-slate-800 my-1">L-045</h4><p class="text-xs text-slate-500">Wait: 5 mins</p></div>
+                                <div class="p-4 border border-purple-100 bg-purple-50 rounded-lg text-center"><p class="text-xs font-bold text-purple-600 uppercase">CT Scan</p><h4 class="text-3xl font-black text-slate-800 my-1">CT-08</h4><p class="text-xs text-slate-500">Wait: 20 mins</p></div>
+                                <div class="p-4 border border-amber-100 bg-amber-50 rounded-lg text-center"><p class="text-xs font-bold text-amber-600 uppercase">Pharmacy</p><h4 class="text-3xl font-black text-slate-800 my-1">P-089</h4><p class="text-xs text-slate-500">Wait: 2 mins</p></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 7. OPD DASHBOARD (TV Display Display) -->
+                <div id="opd" class="view-section p-6 space-y-6">
+                    <div class="bg-slate-900 rounded-xl p-10 text-center text-white shadow-2xl relative overflow-hidden h-[60vh] flex flex-col justify-center">
+                        <div class="absolute -right-10 -top-10 opacity-10"><i data-lucide="monitor" class="w-[400px] h-[400px]"></i></div>
+                        <p class="text-blue-400 font-bold tracking-widest uppercase mb-4 text-2xl">General OPD - Dr. Sarah Smith - Room 101</p>
+                        <h1 id="opd-current-token" class="text-[12rem] font-black leading-none mb-6 transition-all duration-300 transform scale-100">A-104</h1>
+                        <p class="text-3xl text-emerald-400 font-medium blink">Please proceed to the cabin</p>
+                    </div>
+                    <div class="flex justify-center gap-6 mt-8">
+                        <button onclick="handleRecall()" class="px-10 py-5 bg-slate-200 text-slate-700 font-bold rounded-xl hover:bg-slate-300 transition shadow text-xl">Recall PA System</button>
+                        <button onclick="handleCallNext()" class="px-10 py-5 bg-blue-600 text-white font-black rounded-xl hover:bg-blue-700 transition shadow-xl text-2xl flex items-center gap-3">CALL NEXT <i data-lucide="arrow-right-circle"></i></button>
+                    </div>
+                </div>
+
+                <!-- 8. LABORATORY DASHBOARD -->
+                <div id="laboratory" class="view-section p-6 space-y-6">
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                        <div class="bg-white p-4 rounded-xl shadow-sm border-l-4 border-slate-500"><p class="text-xs font-bold text-slate-500 uppercase">Token Gen</p><button class="mt-2 text-sm bg-slate-100 px-3 py-1 rounded font-bold w-full hover:bg-slate-200" onclick="showToast('Token L-046 Generated.')">Generate Token</button></div>
+                        <div class="bg-white p-4 rounded-xl shadow-sm border-l-4 border-amber-500"><p class="text-xs font-bold text-slate-500 uppercase">Pending Requests</p><h4 class="text-2xl font-black mt-1" id="lab-pending-count">1</h4></div>
+                        <div class="bg-white p-4 rounded-xl shadow-sm border-l-4 border-blue-500"><p class="text-xs font-bold text-slate-500 uppercase">Processing</p><h4 class="text-2xl font-black mt-1">18</h4></div>
+                        <div class="bg-white p-4 rounded-xl shadow-sm border-l-4 border-emerald-500"><p class="text-xs font-bold text-slate-500 uppercase">Completed Reports</p><h4 class="text-2xl font-black mt-1">126</h4></div>
+                    </div>
+                    
+                    <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                        <div class="p-4 border-b border-slate-100 bg-slate-50 font-bold flex justify-between items-center">
+                            Live Laboratory Queue (Synced with Doctors)
+                            <button onclick="downloadRealFile('LabQueue.csv', 'Name,Test\nEmma Watson,LFT', 'text/csv')" class="px-3 py-1 bg-white border rounded text-xs hover:bg-slate-50"><i data-lucide="file-output" class="inline w-3 h-3"></i> Export CSV</button>
+                        </div>
+                        <table class="w-full text-left text-sm">
+                            <tr class="border-b bg-slate-50"><th class="p-3">Source/Patient</th><th class="p-3">Test Type</th><th class="p-3">Reference Values</th><th class="p-3">Status</th><th class="p-3 text-right">Action</th></tr>
+                            <tbody id="lab-queue-tbody">
+                                <!-- Default pending item -->
+                                <tr class="border-b transition-colors bg-amber-50/30">
+                                    <td class="p-3"><p class="font-bold">Emma Watson</p><p class="text-xs text-slate-500">Ordered by Dr. Smith</p></td>
+                                    <td class="p-3 font-medium">LFT Profile</td>
+                                    <td class="p-3"><button class="text-xs text-blue-600 underline font-medium hover:text-blue-800" onclick="promptLabValues(this)">Enter Values</button></td>
+                                    <td class="p-3"><span class="px-2 py-1 bg-amber-100 text-amber-700 rounded-full text-xs font-bold">Pending Sample</span></td>
+                                    <td class="p-3 text-right"><button onclick="handleLabProcess(this)" class="bg-blue-600 text-white px-3 py-1.5 rounded text-xs font-bold shadow hover:bg-blue-700 transition-colors">Process & Auto-Report</button></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- 9-11. RADIOLOGY / CT / MRI DASHBOARDS -->
+                <div id="radiology" class="view-section p-6 space-y-6">
+                    <h2 class="text-2xl font-black mb-4 border-b pb-2">Imaging & Diagnostics Center</h2>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                        <div class="bg-slate-800 text-white p-4 rounded-xl shadow-sm text-center cursor-pointer border-2 border-transparent hover:border-blue-400 transition-colors">
+                            <i data-lucide="bone" class="mx-auto mb-2 text-blue-400"></i><h3 class="font-bold">X-Ray Dept</h3><p class="text-xs text-slate-400" id="rad-q-count">Requests: 0</p>
+                        </div>
+                        <div class="bg-white p-4 rounded-xl shadow-sm text-center cursor-pointer border border-slate-200 hover:border-blue-400 transition-colors" onclick="navigate('ct')">
+                            <i data-lucide="server" class="mx-auto mb-2 text-slate-600"></i><h3 class="font-bold">CT Scan Dept</h3><p class="text-xs text-slate-500" id="ct-q-count">Requests: 0</p>
+                        </div>
+                        <div class="bg-white p-4 rounded-xl shadow-sm text-center cursor-pointer border border-slate-200 hover:border-blue-400 transition-colors" onclick="navigate('mri')">
+                            <i data-lucide="disc" class="mx-auto mb-2 text-slate-600"></i><h3 class="font-bold">MRI Dept</h3><p class="text-xs text-slate-500" id="mri-q-count">Requests: 0</p>
+                        </div>
+                        <div class="bg-white p-4 rounded-xl shadow-sm text-center cursor-pointer border border-slate-200 hover:border-blue-400 transition-colors">
+                            <i data-lucide="waves" class="mx-auto mb-2 text-slate-600"></i><h3 class="font-bold">Ultrasound</h3><p class="text-xs text-slate-500">Requests: 2</p>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                        <div class="p-4 border-b border-slate-100 bg-slate-50 font-bold">Central Imaging Queue (Synced from Doctors)</div>
+                        <table class="w-full text-left text-sm">
+                            <tr class="border-b bg-slate-50"><th class="p-3">Patient</th><th class="p-3">Modality</th><th class="p-3">Exam Type</th><th class="p-3">Scheduling</th><th class="p-3 text-right">Actions</th></tr>
+                            <tbody id="imaging-queue-tbody">
+                                <!-- Dynamically populated by JS when Doctor orders -->
+                                <tr><td colspan="5" class="p-6 text-center text-slate-400 italic">No pending imaging requests. Queue is clear.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div id="ct" class="view-section p-6 space-y-6">
+                    <button onclick="navigate('radiology')" class="mb-4 text-blue-600 font-bold text-sm hover:underline"><i data-lucide="arrow-left" class="inline w-4 h-4"></i> Back to Imaging Center</button>
+                    <div class="bg-slate-900 text-white rounded-xl p-8 shadow-lg flex justify-between items-center border-l-4 border-amber-500">
+                        <div>
+                            <p class="text-amber-400 font-bold mb-2 uppercase text-sm tracking-wider">CT Scan Queue & Token Management</p>
+                            <h3 class="text-4xl font-black">SCAN-001</h3>
+                            <p class="mt-2 text-slate-400">Ready for scan scheduling.</p>
+                        </div>
+                        <div class="flex flex-col gap-2">
+                            <button onclick="showToast('CT Token generated')" class="bg-slate-800 border border-slate-700 px-6 py-2 rounded font-bold text-sm hover:bg-slate-700 transition-colors">Generate CT Token</button>
+                            <button id="ct-scan-btn" onclick="startScanSequence(this, 'CT')" class="bg-amber-600 hover:bg-amber-500 px-6 py-2 rounded font-bold text-sm shadow transition-colors">Start Scan sequence</button>
+                            <button onclick="downloadReport('ct_scan', 'CT_Report_PT901.pdf')" class="bg-emerald-600 hover:bg-emerald-500 px-6 py-2 rounded font-bold text-sm shadow transition-colors">Publish to Patient Portal (PDF)</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div id="mri" class="view-section p-6 space-y-6">
+                     <button onclick="navigate('radiology')" class="mb-4 text-blue-600 font-bold text-sm hover:underline"><i data-lucide="arrow-left" class="inline w-4 h-4"></i> Back to Imaging Center</button>
+                     <div class="bg-white border-2 border-indigo-200 rounded-xl p-8 shadow flex justify-between items-center">
+                        <div>
+                            <p class="text-indigo-600 font-bold mb-2 uppercase text-sm tracking-wider">MRI Department Controls</p>
+                            <h3 class="text-3xl font-black text-slate-800">Queue Management</h3>
+                        </div>
+                        <div class="flex flex-col gap-2">
+                             <button id="mri-scan-btn" onclick="startScanSequence(this, 'MRI')" class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded font-bold text-sm shadow transition-colors">Start MRI Scan</button>
+                             <button onclick="downloadReport('mri_scan', 'MRI_Report_PT901.pdf')" class="bg-slate-800 text-white px-6 py-2 rounded font-bold text-sm shadow hover:bg-slate-700">Upload Report (PDF)</button>
+                        </div>
+                     </div>
+                </div>
+
+                <!-- 12. PHARMACY DASHBOARD -->
+                <div id="pharmacy" class="view-section p-6 space-y-6">
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+                        <button class="bg-white p-3 rounded shadow-sm border border-slate-200 text-sm font-bold flex justify-center items-center gap-2 hover:bg-slate-50 transition-colors" onclick="showToast('Generating Rx Token...')"><i data-lucide="ticket"></i> Gen Medicine Token</button>
+                        <button class="bg-white p-3 rounded shadow-sm border border-slate-200 text-sm font-bold flex justify-center items-center gap-2 hover:bg-slate-50 transition-colors" onclick="showToast('Opening Stock Manager...')"><i data-lucide="package"></i> Manage Stock</button>
+                        <button class="bg-white p-3 rounded shadow-sm border border-slate-200 text-sm font-bold flex justify-center items-center gap-2 hover:bg-slate-50 transition-colors" onclick="showToast('Opening Inventory...')"><i data-lucide="database"></i> Inventory</button>
+                        <button class="bg-rose-50 text-rose-700 border-rose-200 p-3 rounded shadow-sm border text-sm font-bold flex justify-center items-center gap-2 hover:bg-rose-100 transition-colors" onclick="showToast('Low stock: Insulin, Amoxicillin')"><i data-lucide="alert-triangle"></i> Low Stock Alerts</button>
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                            <div class="p-4 border-b border-slate-100 bg-slate-50 font-bold">Pharmacy E-Prescription Queue</div>
+                            <ul class="divide-y divide-slate-100" id="pharmacy-queue-list">
+                                <!-- Default item -->
+                                <li class="p-4 flex flex-col gap-3">
+                                    <div class="flex justify-between">
+                                        <div><p class="font-bold text-lg">Emma Watson</p><p class="text-xs text-slate-500">Dr. Sarah Smith</p></div>
+                                        <span class="bg-rose-100 text-rose-700 text-xs px-2 py-1 rounded font-bold h-fit">Pending Dispense</span>
+                                    </div>
+                                    <div class="bg-slate-50 p-2 rounded text-sm font-mono border text-slate-700">Rx: Paracetamol 500mg, Amoxicillin</div>
+                                    <div class="flex justify-between items-center mt-2">
+                                        <button onclick="printDocument('Pharmacy Prescription', 'Rx: Paracetamol 500mg, Amoxicillin<br>Dispensed By: Pharmacy Dept')" class="text-xs font-bold text-slate-600 border px-3 py-1.5 rounded hover:bg-slate-50 transition-colors"><i data-lucide="printer" class="inline w-3 h-3"></i> Print Copy</button>
+                                        <button onclick="handleDispenseAndBill(this, 35.00)" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded shadow text-sm font-bold transition-colors">Dispense & Send to Billing</button>
+                                    </div>
+                                </li>
+                            </ul>
+                        </div>
+                        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+                            <h3 class="font-bold border-b pb-2 mb-4"><i data-lucide="search" class="inline w-4 h-4 mr-1"></i> Medicine Search & Add</h3>
+                            <input type="text" placeholder="Search drug inventory..." class="w-full border p-3 rounded focus:ring-2 focus:ring-blue-500 outline-none mb-4 bg-slate-50">
+                            <button onclick="showAddMedicineModal()" class="w-full border-2 border-dashed border-slate-300 text-slate-500 py-3 rounded font-bold hover:bg-slate-50 transition-colors">+ Add New Medicine to Inventory</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 13. FINANCE & BILLING DASHBOARD -->
+                <div id="finance" class="view-section p-6 space-y-6">
+                    <div class="flex justify-between items-center">
+                        <h2 class="text-2xl font-black">Finance & Billing Headquarters</h2>
+                        <div class="flex gap-2">
+                            <button onclick="downloadRealFile('Finance_Data.csv', 'Date,Revenue\n2026-06-29,12450', 'text/csv')" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded text-sm font-bold transition-colors"><i data-lucide="sheet" class="inline w-4 h-4 mr-1"></i> Export Excel</button>
+                            <button onclick="navigate('reports')" class="bg-slate-800 hover:bg-slate-900 text-white px-4 py-2 rounded text-sm font-bold transition-colors">Revenue Analytics</button>
+                        </div>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm"><p class="text-xs font-bold text-slate-500 uppercase">Est. Treatment Cost</p><button class="mt-2 text-sm bg-blue-50 hover:bg-blue-100 text-blue-700 px-3 py-1.5 rounded font-bold w-full border border-blue-100 transition-colors" onclick="promptEstimate()">Calculate Estimate</button></div>
+                        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm"><p class="text-xs font-bold text-slate-500 uppercase">Insurance Mgt</p><button class="mt-2 text-sm bg-purple-50 hover:bg-purple-100 text-purple-700 px-3 py-1.5 rounded font-bold w-full border border-purple-100 transition-colors" onclick="showToast('Insurance Claim electronically submitted.')">Process Claim</button></div>
+                        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm"><p class="text-xs font-bold text-slate-500 uppercase">Discounts/Refunds</p><button class="mt-2 text-sm bg-amber-50 hover:bg-amber-100 text-amber-700 px-3 py-1.5 rounded font-bold w-full border border-amber-100 transition-colors" onclick="promptRefund()">Apply Refund</button></div>
+                        <div class="bg-slate-900 p-4 rounded-xl shadow-sm text-white"><p class="text-xs font-bold text-slate-400 uppercase">Total Revenue (Today)</p><h4 class="text-2xl font-black mt-1">$12,450</h4></div>
+                    </div>
+
+                    <div class="bg-white p-8 rounded-xl shadow-sm border border-slate-200 max-w-4xl mx-auto mt-8">
+                        <div class="flex justify-between items-center mb-6 border-b pb-4">
+                            <div><h2 class="text-xl font-bold">Smart Billing Console</h2><p class="text-slate-500 text-sm">Invoice #INV-2026-991 | Patient: Emma Watson</p></div>
+                            <span class="bg-amber-100 text-amber-700 px-3 py-1 rounded-full text-xs font-bold">Pending Payment</span>
+                        </div>
+                        <table class="w-full text-left mb-6 text-sm">
+                            <tr class="border-b text-slate-500"><th class="pb-2">Description / Source</th><th class="pb-2 text-right">Amount</th></tr>
+                            <tr class="border-b"><td class="py-3">OPD Consultation Fee</td><td class="text-right">$50.00</td></tr>
+                            <tr class="border-b"><td class="py-3 text-emerald-600 font-medium">Laboratory Charges (Auto-Synced)</td><td class="text-right">$0.00</td></tr>
+                            <tr class="border-b"><td class="py-3 text-purple-600 font-medium">Radiology Charges (Auto-Synced)</td><td class="text-right">$0.00</td></tr>
+                            <tbody id="billing-items-tbody">
+                                <!-- Populated dynamically by Pharmacy dispense -->
+                            </tbody>
+                            <tr><td class="py-4 font-bold text-right text-lg">Total Due:</td><td class="py-4 font-bold text-right text-2xl text-slate-900" id="billing-total">$50.00</td></tr>
+                        </table>
+                        <div class="grid grid-cols-4 gap-3 mb-6">
+                            <button onclick="selectPayment(this)" class="py-2.5 border-2 border-slate-200 rounded-lg font-bold hover:border-blue-500 text-sm transition-colors">Cash</button>
+                            <button onclick="selectPayment(this)" class="py-2.5 border-2 border-slate-200 rounded-lg font-bold hover:border-blue-500 text-sm transition-colors">Card</button>
+                            <button onclick="selectPayment(this)" class="py-2.5 border-2 border-slate-200 rounded-lg font-bold hover:border-blue-500 text-sm transition-colors">Insurance</button>
+                            <button onclick="promptDiscount()" class="py-2.5 border-2 border-amber-300 bg-amber-50 hover:bg-amber-100 text-amber-700 rounded-lg font-bold text-sm transition-colors">Apply Discount</button>
+                        </div>
+                        <div class="flex gap-4">
+                            <button onclick="handlePrintReceipt()" class="flex-1 bg-slate-900 text-white font-bold py-3 rounded-lg shadow hover:bg-slate-800 text-sm transition-colors"><i data-lucide="printer" class="inline w-4 h-4 mr-1"></i> Print Invoice & Receipt</button>
+                            <button onclick="downloadReport('invoice', 'Invoice_INV-2026-991.pdf')" class="flex-1 border-2 border-slate-200 text-slate-700 font-bold py-3 rounded-lg hover:bg-slate-50 text-sm transition-colors"><i data-lucide="download" class="inline w-4 h-4 mr-1"></i> Download PDF</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 14. EMERGENCY DASHBOARD -->
+                <div id="emergency" class="view-section p-6 space-y-6 bg-rose-50 min-h-full">
+                    <div class="flex justify-between items-center mb-6 border-b border-rose-200 pb-4">
+                        <h2 class="text-2xl font-black text-rose-700 flex items-center"><i data-lucide="alert-triangle" class="mr-2"></i> ER Triage & Coordination</h2>
+                        <div class="flex gap-2">
+                            <button onclick="showToast('Ambulance GPS Tracker Interface Opened')" class="bg-white border border-rose-200 text-rose-700 px-4 py-2 rounded font-bold shadow-sm text-sm hover:bg-rose-50 transition-colors"><i data-lucide="truck" class="inline w-4 h-4 mr-1"></i> Ambulance Fleet</button>
+                            <button onclick="showToast('New ER Patient Registration Form Opened.')" class="bg-rose-600 hover:bg-rose-700 text-white px-4 py-2 rounded font-bold shadow text-sm transition-colors">Register Emergency</button>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <!-- Card 1 -->
+                        <div class="bg-white p-5 rounded-xl border-t-4 border-rose-600 shadow-lg">
+                            <div class="flex justify-between mb-2"><span class="bg-rose-100 text-rose-800 text-[10px] uppercase font-black px-2 py-0.5 rounded">Priority 1 (Red)</span><span class="text-xs font-bold blink text-rose-600">INBOUND (2m)</span></div>
+                            <h3 class="font-bold text-lg mb-1">Trauma Patient (RTA)</h3>
+                            <p class="text-xs text-slate-600 mb-4 border-b pb-2">Multiple fractures. Unconscious.</p>
+                            <div class="space-y-2 mb-4">
+                                <button onclick="handleAssignBed(this, 'ICU-1')" class="w-full bg-slate-100 text-slate-700 py-2 rounded font-bold text-xs hover:bg-slate-200 transition-colors">Assign ICU Bed</button>
+                                <button onclick="showToast('Trauma Surgeon Alerted via Pager')" class="w-full bg-slate-100 text-slate-700 py-2 rounded font-bold text-xs hover:bg-slate-200 transition-colors">Assign Trauma Doctor</button>
+                            </div>
+                            <button onclick="promptTreatmentPlan()" class="w-full border border-blue-200 text-blue-700 py-2.5 rounded font-bold text-xs bg-blue-50 hover:bg-blue-100 transition-colors">Create Treatment Plan</button>
+                        </div>
+                        <!-- Card 2 -->
+                        <div class="bg-white p-5 rounded-xl border-t-4 border-amber-500 shadow-md">
+                            <div class="flex justify-between mb-2"><span class="bg-amber-100 text-amber-800 text-[10px] uppercase font-black px-2 py-0.5 rounded">Priority 2 (Yellow)</span><span class="text-xs text-slate-500">Wait: 10m</span></div>
+                            <h3 class="font-bold text-lg mb-1">Sarah Connor</h3>
+                            <p class="text-xs text-slate-600 mb-4 border-b pb-2">Chest Pain. BP: 160/100.</p>
+                            <button onclick="promptERVitals(this)" class="w-full bg-slate-100 text-slate-700 py-2.5 rounded font-bold text-xs hover:bg-slate-200 mb-2 transition-colors">Record Initial Vitals</button>
+                            <button onclick="navigate('icu'); showToast('Patient transferred to ICU view.')" class="w-full bg-amber-50 border border-amber-200 text-amber-700 py-2.5 rounded font-bold text-xs hover:bg-amber-100 transition-colors">Transfer to ICU</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 15. NURSE DASHBOARD -->
+                <div id="nurse" class="view-section p-6 space-y-6">
+                    <div class="flex justify-between items-center">
+                        <h2 class="text-xl font-bold">Nursing Station</h2>
+                        <button onclick="promptShiftNotes()" class="bg-blue-50 hover:bg-blue-100 transition-colors text-blue-700 border border-blue-200 px-4 py-2 rounded text-sm font-bold">Submit Shift Handover Notes</button>
+                    </div>
+                    <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                        <div class="p-4 border-b border-slate-100 bg-slate-50 font-bold flex justify-between items-center">
+                            Assigned Ward Patients (Wing A)
+                        </div>
+                        <table class="w-full text-left text-sm">
+                            <tr class="border-b bg-slate-50"><th class="p-3">Bed/Patient</th><th class="p-3">Vitals Status</th><th class="p-3">Medication Schedule</th><th class="p-3 text-right">Nursing Actions</th></tr>
+                            <tr class="border-b">
+                                <td class="p-3"><p class="font-bold">Bed A-01</p><p class="text-xs text-slate-500">William Hart</p></td>
+                                <td class="p-3"><p class="text-xs font-bold text-emerald-600">Stable (2h ago)</p></td>
+                                <td class="p-3"><span class="bg-rose-100 text-rose-700 px-2 py-0.5 rounded text-xs font-bold">Due Now: IV Antibiotics</span></td>
+                                <td class="p-3 text-right flex gap-1 justify-end">
+                                    <button onclick="handleNurseAction(this, 'meds')" class="px-2.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-bold transition-colors">Administer Meds</button>
+                                    <button onclick="handleNurseAction(this, 'vitals')" class="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 border rounded text-xs font-bold transition-colors">Record Vitals</button>
+                                    <button onclick="promptNurseNotes()" class="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 border rounded text-xs font-bold transition-colors">Notes</button>
+                                </td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- 16. WARD DASHBOARD -->
+                <div id="ward" class="view-section p-6 space-y-6">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-xl font-bold">Ward Capacity & Bed Management</h2>
+                        <div class="flex gap-4 text-xs font-bold"><span class="flex items-center gap-1"><div class="w-3 h-3 rounded bg-emerald-500"></div> Available</span><span class="flex items-center gap-1"><div class="w-3 h-3 rounded bg-rose-500"></div> Occupied</span></div>
+                    </div>
+                    
+                    <div class="bg-white p-4 rounded-xl border mb-6 shadow-sm flex gap-4 text-sm font-medium items-center">
+                        <span class="text-slate-500">Quick Actions:</span>
+                        <button onclick="showToast('Bed allocation menu opened')" class="text-blue-600 hover:underline">Assign Patient to Bed</button>
+                        <button onclick="showToast('Transfer protocol initiated')" class="text-amber-600 hover:underline">Transfer Patient</button>
+                        <button onclick="showToast('Discharge summary generated. Bed marked for cleaning.')" class="text-rose-600 hover:underline">Process Discharge</button>
+                    </div>
+
+                    <div class="grid grid-cols-4 sm:grid-cols-6 lg:grid-cols-10 gap-3">
+                        <!-- Ward Beds Matrix -->
+                        <div onclick="handleBedDetails('W-01', 'Occupied', '12 Jun 2026', 'Pending')" class="aspect-square bg-rose-50 border-2 border-rose-200 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:bg-rose-100 relative group transition-colors"><i data-lucide="bed-double" class="text-rose-600 mb-1 w-6 h-6"></i><span class="text-[10px] font-bold text-rose-800">W-01</span><div class="absolute hidden group-hover:block bg-slate-800 text-white text-xs p-2 rounded -top-10 z-10 w-32 shadow-xl">Admitted: 12 Jun<br>Occupied</div></div>
+                        <div onclick="handleBedDetails('W-02', 'Available', '--', '--')" class="aspect-square bg-emerald-50 border-2 border-emerald-200 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:bg-emerald-100 transition-colors"><i data-lucide="bed-double" class="text-emerald-600 mb-1 w-6 h-6"></i><span class="text-[10px] font-bold text-emerald-800">W-02</span></div>
+                        <div onclick="handleBedDetails('W-03', 'Available', '--', '--')" class="aspect-square bg-emerald-50 border-2 border-emerald-200 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:bg-emerald-100 transition-colors"><i data-lucide="bed-double" class="text-emerald-600 mb-1 w-6 h-6"></i><span class="text-[10px] font-bold text-emerald-800">W-03</span></div>
+                        <div onclick="handleBedDetails('W-04', 'Available', '--', '--')" class="aspect-square bg-emerald-50 border-2 border-emerald-200 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:bg-emerald-100 transition-colors"><i data-lucide="bed-double" class="text-emerald-600 mb-1 w-6 h-6"></i><span class="text-[10px] font-bold text-emerald-800">W-04</span></div>
+                    </div>
+                </div>
+
+                <!-- 17. OPERATION THEATRE (OT) DASHBOARD -->
+                <div id="ot" class="view-section p-6 space-y-6">
+                    <div class="bg-slate-900 text-white rounded-xl p-8 flex justify-between items-center shadow-lg border-t-4 border-emerald-500">
+                        <div>
+                            <p class="text-emerald-400 font-bold mb-1 uppercase text-xs tracking-widest flex items-center"><span class="w-2 h-2 rounded-full bg-emerald-400 mr-2 blink"></span> SURGERY IN PROGRESS | OT-1</p>
+                            <h3 class="text-3xl font-black mb-2">Appendectomy</h3>
+                            <p class="text-sm font-medium text-slate-300">Surgeon: Dr. Adams | Anaesthetist: Dr. Khan | Scrub Nurse: N. Sarah</p>
+                        </div>
+                        <div class="text-right">
+                            <p class="text-slate-400 text-xs font-bold uppercase mb-1">Duration</p>
+                            <h2 class="text-4xl font-mono text-emerald-300">01:45:20</h2>
+                            <button onclick="showToast('Operation marked completed. Patient moving to Recovery/ICU.')" class="mt-4 px-4 py-1.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded transition-colors">End Surgery & Update Status</button>
+                        </div>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
+                            <h4 class="font-bold border-b pb-2 mb-3 text-sm">OT Schedule Manager</h4>
+                            <div class="flex flex-col gap-2">
+                                <button onclick="promptAssignSurgeon()" class="text-left bg-slate-50 border p-3 rounded hover:bg-slate-100 text-sm transition-colors"><span class="font-bold text-blue-600 block mb-1">02:30 PM - Knee Replacement</span>Assign Surgeon & OT Staff</button>
+                                <button onclick="promptOpNotes()" class="text-left bg-slate-50 border p-3 rounded hover:bg-slate-100 text-sm transition-colors"><i data-lucide="edit-3" class="w-4 h-4 inline mr-1 text-slate-500"></i> Write Post-Op Notes (Bypass)</button>
+                            </div>
+                        </div>
+                        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
+                            <h4 class="font-bold border-b pb-2 mb-3 text-sm flex justify-between">Equipment Checklist <span class="text-xs text-rose-500">Pre-op Action Required</span></h4>
+                            <label class="flex items-center gap-2 text-sm p-2 hover:bg-slate-50 cursor-pointer"><input type="checkbox"> Sterilization Complete</label>
+                            <label class="flex items-center gap-2 text-sm p-2 hover:bg-slate-50 cursor-pointer"><input type="checkbox"> Anaesthesia Machine Check</label>
+                            <label class="flex items-center gap-2 text-sm p-2 hover:bg-slate-50 cursor-pointer"><input type="checkbox"> Vitals Monitor Active</label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 18. ICU DASHBOARD -->
+                <div id="icu" class="view-section p-6 space-y-6 bg-slate-900 min-h-full text-slate-300">
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-2xl font-black text-white flex items-center"><i data-lucide="activity" class="mr-2 text-rose-500"></i> ICU Central Telemetry</h2>
+                        <span class="text-xs bg-slate-800 px-3 py-1 rounded text-slate-400 font-mono">LIVE FEED ENCRYPTED</span>
+                    </div>
+                    
+                    <div class="bg-slate-800 rounded-xl p-6 shadow-2xl border border-slate-700">
+                        <div class="flex justify-between items-center mb-6 border-b border-slate-700 pb-4">
+                            <div>
+                                <span class="font-black text-2xl text-white block">Bed 1 - Sarah Connor (Post-Op)</span>
+                                <span class="text-xs text-emerald-400 flex items-center mt-1"><i data-lucide="clock" class="w-3 h-3 mr-1"></i> Recorded Auto: <span id="icu-time"></span></span>
+                            </div>
+                            <div class="flex gap-2">
+                                <button onclick="promptICUNotes('Doctor')" class="px-3 py-1.5 bg-slate-700 text-xs font-bold rounded hover:bg-slate-600 text-white transition-colors">Add Doctor Note</button>
+                                <button onclick="promptICUNotes('Nurse')" class="px-3 py-1.5 bg-slate-700 text-xs font-bold rounded hover:bg-slate-600 text-white transition-colors">Add Nurse Note</button>
+                            </div>
+                        </div>
+                        
+                        <div class="grid grid-cols-2 md:grid-cols-5 gap-4 text-center">
+                            <div class="bg-slate-900 p-4 rounded-xl border border-slate-700 shadow-inner">
+                                <p class="text-slate-500 text-[10px] uppercase font-bold tracking-widest mb-1">Heart Rate</p>
+                                <p class="text-4xl font-mono text-emerald-400 font-black">82 <span class="text-xs font-sans text-slate-500 font-normal">bpm</span></p>
+                            </div>
+                            <div class="bg-slate-900 p-4 rounded-xl border border-rose-900/50 shadow-inner relative overflow-hidden">
+                                <div class="absolute inset-0 bg-rose-500/10 blink"></div>
+                                <p class="text-slate-500 text-[10px] uppercase font-bold tracking-widest mb-1">Blood Pressure</p>
+                                <p class="text-3xl font-mono text-rose-400 font-black mt-1">160/95</p>
+                                <p class="text-[9px] text-rose-500 font-bold mt-1 uppercase relative z-10">Alert: Hypertension</p>
+                            </div>
+                            <div class="bg-slate-900 p-4 rounded-xl border border-slate-700 shadow-inner">
+                                <p class="text-slate-500 text-[10px] uppercase font-bold tracking-widest mb-1">SpO₂ (Oxygen)</p>
+                                <p class="text-4xl font-mono text-blue-400 font-black">98 <span class="text-xs font-sans text-slate-500 font-normal">%</span></p>
+                            </div>
+                            <div class="bg-slate-900 p-4 rounded-xl border border-slate-700 shadow-inner">
+                                <p class="text-slate-500 text-[10px] uppercase font-bold tracking-widest mb-1">Temperature</p>
+                                <p class="text-3xl font-mono text-amber-400 font-black mt-1">99.1 <span class="text-xs font-sans text-slate-500 font-normal">°F</span></p>
+                            </div>
+                            <div class="bg-slate-900 p-4 rounded-xl border border-slate-700 shadow-inner">
+                                <p class="text-slate-500 text-[10px] uppercase font-bold tracking-widest mb-1">Resp. Rate</p>
+                                <p class="text-4xl font-mono text-purple-400 font-black">16 <span class="text-xs font-sans text-slate-500 font-normal">/m</span></p>
+                            </div>
+                        </div>
+                        
+                        <div class="mt-6 flex justify-end">
+                            <button onclick="showToast('Live vitals recorded successfully to DB.')" class="bg-blue-600 text-white px-6 py-2 rounded text-sm font-bold hover:bg-blue-500 transition-colors">Manual Save Vitals Snap</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 19. REPORTS DASHBOARD -->
+                <div id="reports" class="view-section p-6 space-y-6">
+                    <h2 class="text-2xl font-black border-b pb-2 mb-4">Enterprise Analytics & Reports</h2>
+                    
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+                        <button onclick="downloadRealFile('Finance_Data.csv', 'Date,Revenue\nToday,12450', 'text/csv')" class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 hover:border-emerald-500 hover:shadow-md transition-all flex flex-col items-center justify-center gap-2"><i data-lucide="sheet" class="text-emerald-600 w-8 h-8"></i> <span class="font-bold text-sm text-center">Export Finance (Excel)</span></button>
+                        <button onclick="downloadRealFile('Patient_Data.csv', 'ID,Name,Status\nPT-901,Emma,Active', 'text/csv')" class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 hover:border-blue-500 hover:shadow-md transition-all flex flex-col items-center justify-center gap-2"><i data-lucide="users" class="text-blue-600 w-8 h-8"></i> <span class="font-bold text-sm text-center">Export Patients (Excel)</span></button>
+                        <button onclick="downloadRealFile('Doctor_Performance.csv', 'Doc,Patients_Seen\nSmith,24', 'text/csv')" class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 hover:border-purple-500 hover:shadow-md transition-all flex flex-col items-center justify-center gap-2"><i data-lucide="activity" class="text-purple-600 w-8 h-8"></i> <span class="font-bold text-sm text-center">Doctor Performance</span></button>
+                        <button onclick="downloadReport('master', 'Hospital_Master_Report.pdf')" class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 hover:border-rose-500 hover:shadow-md transition-all flex flex-col items-center justify-center gap-2"><i data-lucide="file-text" class="text-rose-600 w-8 h-8"></i> <span class="font-bold text-sm text-center">Master Summary (PDF)</span></button>
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                            <h3 class="font-bold text-sm border-b pb-2 mb-4">Export Department Logs</h3>
+                            <div class="space-y-2">
+                                <button onclick="downloadRealFile('Appointments.csv', 'Date,Status', 'text/csv')" class="w-full text-left text-sm p-3 hover:bg-slate-50 border border-slate-200 rounded font-bold text-slate-600 transition-colors">Appointments Log</button>
+                                <button onclick="downloadRealFile('Lab_Archive.csv', 'LabID,Result', 'text/csv')" class="w-full text-left text-sm p-3 hover:bg-slate-50 border border-slate-200 rounded font-bold text-slate-600 transition-colors">Laboratory Archive</button>
+                                <button onclick="downloadRealFile('Radiology_Archive.csv', 'RadID,Modality', 'text/csv')" class="w-full text-left text-sm p-3 hover:bg-slate-50 border border-slate-200 rounded font-bold text-slate-600 transition-colors">Radiology Archive</button>
+                                <button onclick="downloadRealFile('Pharmacy_Dispense.csv', 'Rx,Drug,Qty', 'text/csv')" class="w-full text-left text-sm p-3 hover:bg-slate-50 border border-slate-200 rounded font-bold text-slate-600 transition-colors">Pharmacy Dispense Logs</button>
+                            </div>
+                        </div>
+                        <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 flex flex-col items-center justify-center">
+                            <i data-lucide="pie-chart" class="w-24 h-24 mb-4 text-slate-200"></i>
+                            <h3 class="font-bold text-lg mb-2">Live Analytics Charts</h3>
+                            <p class="text-sm text-slate-500 text-center mb-4">Visual charts module is currently rendering data based on exported statistics.</p>
+                            <span class="bg-emerald-100 text-emerald-700 px-3 py-1 rounded text-xs font-bold">Analytics Engine Active</span>
+                        </div>
+                    </div>
+                </div>
+
+            </main>
+        </div>
+    </div>
+
+    <!-- Print Area -->
+    <div id="print-area" class="hidden print:block w-full min-h-screen bg-white p-8 text-slate-900 z-50"></div>
+
+    <!-- JavaScript Logic -->
+    <script>
+        // GLOBAL MODAL SYSTEM
+        function openModal(title, bodyHtml, confirmText, confirmCallback) {
+            document.getElementById('modal-title').innerText = title;
+            document.getElementById('modal-body').innerHTML = bodyHtml;
+            const confirmBtn = document.getElementById('modal-confirm-btn');
+            
+            if (confirmText) {
+                confirmBtn.style.display = 'block';
+                confirmBtn.innerText = confirmText;
+                confirmBtn.onclick = () => {
+                    if(confirmCallback) confirmCallback();
+                    closeModal();
+                };
+            } else {
+                confirmBtn.style.display = 'none';
+            }
+
+            const modal = document.getElementById('global-modal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            
+            if(typeof lucide !== 'undefined') lucide.createIcons();
+        }
+
+        function closeModal() {
+            const modal = document.getElementById('global-modal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        // SMART WORKFLOW STATE
+        const sysState = {
+            labTotal: 1,
+            billingTotal: 50.00,
+            hasLabOrdered: false
+        };
+
+        // Authentication State
+        let currentUser = null; 
+
+        // -------------------------------------------------------------
+        // CSS-STYLED PDF GENERATION LOGIC
+        // -------------------------------------------------------------
+        const pdfTemplates = {
+            'cbc': `
+                <div style="padding: 40px; font-family: 'Inter', sans-serif; color: #1e293b; max-width: 800px;">
+                    <div style="text-align: center; border-bottom: 3px solid #2563eb; padding-bottom: 20px; margin-bottom: 30px;">
+                        <h1 style="color: #1e40af; margin: 0; font-size: 28px; font-weight: 800;">APEXCARE ENTERPRISE</h1>
+                        <p style="color: #64748b; margin: 5px 0 0 0; font-size: 14px; letter-spacing: 2px;">LABORATORY REPORT</p>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 30px; background: #f8fafc; padding: 15px; border-radius: 8px;">
+                        <div>
+                            <p style="margin: 0 0 5px 0;"><strong>Patient:</strong> Emma Watson</p>
+                            <p style="margin: 0 0 5px 0;"><strong>Token:</strong> L-045</p>
+                        </div>
+                        <div style="text-align: right;">
+                            <p style="margin: 0 0 5px 0;"><strong>Date:</strong> 29 Jun 2026</p>
+                            <p style="margin: 0 0 5px 0;"><strong>Doctor:</strong> Dr. Sarah Smith</p>
+                        </div>
+                    </div>
+                    <h3 style="color: #0f172a; border-bottom: 1px solid #e2e8f0; padding-bottom: 10px;">Test: Complete Blood Count (CBC)</h3>
+                    <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
+                        <tr style="background: #e2e8f0; color: #334155; text-align: left;">
+                            <th style="padding: 12px; border-bottom: 2px solid #cbd5e1;">PARAMETER</th>
+                            <th style="padding: 12px; border-bottom: 2px solid #cbd5e1;">RESULT</th>
+                            <th style="padding: 12px; border-bottom: 2px solid #cbd5e1;">NORMAL RANGE</th>
+                        </tr>
+                        <tr>
+                            <td style="padding: 12px; border-bottom: 1px solid #f1f5f9;">Hemoglobin</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #f1f5f9; font-weight: bold; color: #059669;">14.2 g/dL</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #f1f5f9; color: #64748b;">12.0 - 15.5 g/dL</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 12px; border-bottom: 1px solid #f1f5f9;">White Blood Cells</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #f1f5f9; font-weight: bold; color: #059669;">7.5 K/uL</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #f1f5f9; color: #64748b;">4.5 - 11.0 K/uL</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 12px; border-bottom: 1px solid #f1f5f9;">Platelets</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #f1f5f9; font-weight: bold; color: #059669;">250 K/uL</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #f1f5f9; color: #64748b;">150 - 450 K/uL</td>
+                        </tr>
+                    </table>
+                    <div style="margin-top: 30px; padding: 15px; background: #ecfdf5; border-left: 4px solid #10b981; color: #065f46;">
+                        <strong>Conclusion:</strong> All parameters are within normal limits.
+                    </div>
+                </div>
+            `,
+            'xray': `
+                <div style="padding: 40px; font-family: 'Inter', sans-serif; color: #1e293b; max-width: 800px;">
+                    <div style="text-align: center; border-bottom: 3px solid #6366f1; padding-bottom: 20px; margin-bottom: 30px;">
+                        <h1 style="color: #4338ca; margin: 0; font-size: 28px; font-weight: 800;">APEXCARE ENTERPRISE</h1>
+                        <p style="color: #64748b; margin: 5px 0 0 0; font-size: 14px; letter-spacing: 2px;">RADIOLOGY REPORT</p>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 30px; background: #f8fafc; padding: 15px; border-radius: 8px;">
+                        <div><p style="margin: 0 0 5px 0;"><strong>Patient:</strong> Emma Watson</p><p style="margin: 0 0 5px 0;"><strong>Token:</strong> R-088</p></div>
+                        <div style="text-align: right;"><p style="margin: 0 0 5px 0;"><strong>Date:</strong> 25 Jun 2026</p><p style="margin: 0 0 5px 0;"><strong>Doctor:</strong> Dr. Sarah Smith</p></div>
+                    </div>
+                    <h3 style="color: #0f172a; border-bottom: 1px solid #e2e8f0; padding-bottom: 10px;">Exam: Chest X-Ray (PA View)</h3>
+                    <div style="margin-top:20px; line-height: 1.6;">
+                        <h4 style="color: #475569;">FINDINGS:</h4>
+                        <p style="background: #f1f5f9; padding: 15px; border-radius: 5px;">The lungs are clear bilaterally. No focal consolidation, pleural effusion, or pneumothorax is seen. The cardiomediastinal silhouette is normal in size and contour.</p>
+                        <h4 style="color: #475569; margin-top:20px;">IMPRESSION:</h4>
+                        <p style="font-weight: bold; color: #059669; font-size:18px;">Normal chest radiograph.</p>
+                    </div>
+                </div>
+            `,
+            'mri_scan': `
+                <div style="padding: 40px; font-family: 'Inter', sans-serif; color: #1e293b; max-width: 800px;">
+                    <div style="text-align: center; border-bottom: 3px solid #8b5cf6; padding-bottom: 20px; margin-bottom: 30px;">
+                        <h1 style="color: #6d28d9; margin: 0; font-size: 28px; font-weight: 800;">APEXCARE ENTERPRISE</h1>
+                        <p style="color: #64748b; margin: 5px 0 0 0; font-size: 14px; letter-spacing: 2px;">ADVANCED IMAGING REPORT</p>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 30px; background: #f8fafc; padding: 15px; border-radius: 8px;">
+                        <div><p style="margin: 0 0 5px 0;"><strong>Patient:</strong> Emma Watson</p><p style="margin: 0 0 5px 0;"><strong>Token:</strong> M-012</p></div>
+                        <div style="text-align: right;"><p style="margin: 0 0 5px 0;"><strong>Date:</strong> 10 Jan 2026</p><p style="margin: 0 0 5px 0;"><strong>Doctor:</strong> Dr. Emily Chen</p></div>
+                    </div>
+                    <h3 style="color: #0f172a; border-bottom: 1px solid #e2e8f0; padding-bottom: 10px;">Exam: MRI Brain with Contrast</h3>
+                    <div style="margin-top:20px; line-height: 1.6;">
+                        <h4 style="color: #475569;">FINDINGS:</h4>
+                        <p style="background: #f1f5f9; padding: 15px; border-radius: 5px;">Ventricles and sulci are normal in size. No abnormal signal intensity within the brain parenchyma. No evidence of acute mass lesion.</p>
+                        <h4 style="color: #475569; margin-top:20px;">IMPRESSION:</h4>
+                        <p style="font-weight: bold; color: #059669; font-size:18px;">Unremarkable MRI of the brain.</p>
+                    </div>
+                </div>
+            `,
+            'ct_scan': `
+                <div style="padding: 40px; font-family: 'Inter', sans-serif; color: #1e293b; max-width: 800px;">
+                    <div style="text-align: center; border-bottom: 3px solid #d97706; padding-bottom: 20px; margin-bottom: 30px;">
+                        <h1 style="color: #b45309; margin: 0; font-size: 28px; font-weight: 800;">APEXCARE ENTERPRISE</h1>
+                        <p style="color: #64748b; margin: 5px 0 0 0; font-size: 14px; letter-spacing: 2px;">CT IMAGING REPORT</p>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 30px; background: #f8fafc; padding: 15px; border-radius: 8px;">
+                        <div><p style="margin: 0 0 5px 0;"><strong>Patient:</strong> Emma Watson</p><p style="margin: 0 0 5px 0;"><strong>Token:</strong> SCAN-001</p></div>
+                        <div style="text-align: right;"><p style="margin: 0 0 5px 0;"><strong>Date:</strong> 29 Jun 2026</p><p style="margin: 0 0 5px 0;"><strong>Doctor:</strong> Dr. Sarah Smith</p></div>
+                    </div>
+                    <h3 style="color: #0f172a; border-bottom: 1px solid #e2e8f0; padding-bottom: 10px;">Exam: CT Scan (Abdomen)</h3>
+                    <div style="margin-top:20px; line-height: 1.6;">
+                        <h4 style="color: #475569;">FINDINGS:</h4>
+                        <p style="background: #f1f5f9; padding: 15px; border-radius: 5px;">No acute intra-abdominal abnormalities. Liver, spleen, kidneys are unremarkable.</p>
+                        <h4 style="color: #475569; margin-top:20px;">IMPRESSION:</h4>
+                        <p style="font-weight: bold; color: #059669; font-size:18px;">Normal CT Abdomen.</p>
+                    </div>
+                </div>
+            `,
+            'invoice': () => `
+                <div style="padding: 40px; font-family: 'Inter', sans-serif; color: #1e293b; max-width: 800px;">
+                    <div style="text-align: center; border-bottom: 3px solid #2563eb; padding-bottom: 20px; margin-bottom: 30px;">
+                        <h1 style="color: #1e40af; margin: 0; font-size: 28px; font-weight: 800;">APEXCARE RECEIPT</h1>
+                        <p style="color: #64748b; margin: 5px 0 0 0; font-size: 14px; letter-spacing: 2px;">OFFICIAL INVOICE</p>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 30px; background: #f8fafc; padding: 15px; border-radius: 8px;">
+                        <div>
+                            <p style="margin: 0 0 5px 0;"><strong>Patient:</strong> Emma Watson</p>
+                            <p style="margin: 0 0 5px 0;"><strong>Token:</strong> A-104</p>
+                        </div>
+                        <div style="text-align: right;">
+                            <p style="margin: 0 0 5px 0;"><strong>Date:</strong> ${new Date().toLocaleDateString()}</p>
+                            <p style="margin: 0 0 5px 0;"><strong>Doctor:</strong> Dr. Sarah Smith</p>
+                        </div>
+                    </div>
+                    <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
+                        <tr style="background: #e2e8f0; color: #334155; text-align: left;">
+                            <th style="padding: 12px; border-bottom: 2px solid #cbd5e1;">DESCRIPTION</th>
+                            <th style="padding: 12px; border-bottom: 2px solid #cbd5e1; text-align: right;">AMOUNT</th>
+                        </tr>
+                        <tr>
+                            <td style="padding: 12px; border-bottom: 1px solid #f1f5f9;">OPD Consultation Fee</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #f1f5f9; text-align: right;">$50.00</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 12px; border-bottom: 1px solid #f1f5f9;">System Added Charges (Lab/Pharmacy/Rad)</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #f1f5f9; text-align: right;">$${(sysState.billingTotal - 50).toFixed(2)}</td>
+                        </tr>
+                        <tr style="font-size: 20px; font-weight: bold; background: #eff6ff;">
+                            <td style="padding: 15px; color: #1e40af;">TOTAL PAID</td>
+                            <td style="padding: 15px; text-align: right; color: #1e40af;">$${sysState.billingTotal.toFixed(2)}</td>
+                        </tr>
+                    </table>
+                    <div style="text-align: center; margin-top: 40px; color: #64748b; font-size: 14px;">
+                        Thank you for choosing ApexCare Enterprise. <br> Wishing you a speedy recovery!
+                    </div>
+                </div>
+            `,
+            'master': `
+                <div style="padding: 40px; font-family: 'Inter', sans-serif; color: #1e293b; max-width: 800px;">
+                    <div style="text-align: center; border-bottom: 3px solid #e11d48; padding-bottom: 20px; margin-bottom: 30px;">
+                        <h1 style="color: #be123c; margin: 0; font-size: 28px; font-weight: 800;">APEXCARE ENTERPRISE</h1>
+                        <p style="color: #64748b; margin: 5px 0 0 0; font-size: 14px; letter-spacing: 2px;">MASTER HOSPITAL REPORT</p>
+                    </div>
+                    <div style="background: #f8fafc; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+                        <h3 style="color: #0f172a; margin-top:0;">SYSTEM METRICS</h3>
+                        <p>Total Active Patients: <strong>1,245</strong></p>
+                        <p>Total Doctors on Duty: <strong>42</strong></p>
+                        <p>Total Staff Available: <strong>180</strong></p>
+                    </div>
+                    <div style="background: #f8fafc; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+                        <h3 style="color: #0f172a; margin-top:0;">DEPARTMENT PERFORMANCE</h3>
+                        <p>OPD Queue Average Wait: <strong>12 mins</strong></p>
+                        <p>Laboratory Processed Today: <strong>126 tests</strong></p>
+                        <p>Radiology Scans Today: <strong>45 scans</strong></p>
+                        <p>Pharmacy Prescriptions Dispensed: <strong>89</strong></p>
+                    </div>
+                    <div style="background: #fff1f2; padding: 20px; border-radius: 8px; border-left: 4px solid #e11d48;">
+                        <h3 style="color: #9f1239; margin-top:0;">FINANCIAL SUMMARY</h3>
+                        <p>Daily Revenue: <strong>$12,450.00</strong></p>
+                        <p>System Status: <strong>100% Operational (Healthy)</strong></p>
+                    </div>
+                </div>
+            `
+        };
+
+        const views = [
+            { id: 'landing', icon: 'globe', label: '1. Landing Website', header: false },
+            { id: 'departments', icon: '', label: 'Departments', header: false, hiddenNav: true },
+            { id: 'contact', icon: '', label: 'Contact', header: false, hiddenNav: true },
+            { id: 'login-patient', icon: '', label: 'Patient Login', header: false, hiddenNav: true },
+            { id: 'signup-patient', icon: '', label: 'Patient Signup', header: false, hiddenNav: true },
+            { id: 'login-staff', icon: '', label: 'Staff Login', header: false, hiddenNav: true },
+            { id: 'admin', icon: 'settings', label: '2. Admin Panel', header: true },
+            { id: 'superadmin', icon: 'shield-alert', label: '3. Super Admin', header: true },
+            { id: 'patient', icon: 'user', label: '4. Patient Portal', header: true },
+            { id: 'doctor', icon: 'stethoscope', label: '5. Doctor', header: true },
+            { id: 'reception', icon: 'user-plus', label: '6. Reception', header: true },
+            { id: 'opd', icon: 'monitor', label: '7. OPD Display', header: true },
+            { id: 'laboratory', icon: 'flask-conical', label: '8. Laboratory', header: true },
+            { id: 'radiology', icon: 'bone', label: '9. Radiology (All)', header: true },
+            { id: 'ct', icon: 'server', label: '10. CT Scan', header: true, hiddenNav: true },
+            { id: 'mri', icon: 'disc', label: '11. MRI', header: true, hiddenNav: true },
+            { id: 'pharmacy', icon: 'pill', label: '12. Pharmacy', header: true },
+            { id: 'finance', icon: 'dollar-sign', label: '13. Finance/Billing', header: true },
+            { id: 'emergency', icon: 'alert-triangle', label: '14. Emergency', header: true },
+            { id: 'nurse', icon: 'clipboard-list', label: '15. Nurse', header: true },
+            { id: 'ward', icon: 'bed-double', label: '16. Ward', header: true },
+            { id: 'ot', icon: 'scissors', label: '17. Operation Theatre', header: true },
+            { id: 'icu', icon: 'activity', label: '18. ICU', header: true },
+            { id: 'reports', icon: 'bar-chart-2', label: '19. Reports', header: true },
+        ];
+
+        // Initialize Sidebar
+        const navContainer = document.getElementById('nav-links');
+        views.forEach(v => {
+            if(v.hiddenNav || !v.header) return; 
+            const btn = document.createElement('button');
+            btn.className = `nav-btn w-full flex items-center px-4 py-3 text-sm rounded-lg transition-colors text-slate-400 hover:text-white hover:bg-slate-800`;
+            btn.onclick = () => navigate(v.id);
+            btn.id = `nav-${v.id}`;
+            btn.innerHTML = `<i data-lucide="${v.icon}" class="w-4 h-4 mr-3 pointer-events-none"></i> <span class="text-left pointer-events-none">${v.label}</span>`;
+            navContainer.appendChild(btn);
+        });
+
+        setInterval(() => {
+            const now = new Date().toLocaleString('en-US', { hour: 'numeric', minute: 'numeric', second: 'numeric', hour12: true });
+            const dateStr = new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+            const timeStr = `${dateStr} | ${now}`;
+            if(document.getElementById('system-time')) document.getElementById('system-time').innerText = timeStr;
+            if(document.getElementById('icu-time')) document.getElementById('icu-time').innerText = now;
+        }, 1000);
+
+        function showToast(message) {
+            const existing = document.getElementById('toast-notification');
+            if (existing) existing.remove();
+            const toast = document.createElement('div');
+            toast.id = 'toast-notification';
+            toast.className = 'fixed top-6 right-6 bg-slate-900 text-white px-6 py-4 rounded-xl shadow-2xl z-[300] transform transition-all duration-300 -translate-y-10 opacity-0 flex items-center gap-3 border border-slate-700 print:hidden';
+            toast.innerHTML = `<i data-lucide="check-circle" class="w-5 h-5 text-emerald-400"></i> <span class="font-medium">${message}</span>`;
+            document.body.appendChild(toast);
+            lucide.createIcons({ root: toast });
+            setTimeout(() => toast.classList.remove('-translate-y-10', 'opacity-0'), 10);
+            setTimeout(() => { toast.classList.add('-translate-y-10', 'opacity-0'); setTimeout(() => toast.remove(), 300); }, 3500);
+        }
+
+        // Generate Attractive CSS PDF using html2pdf via pure string approach to bypass clipping
+        function generateAttractivePDF(filename, htmlContent) {
+            showToast(`Formatting & Generating ${filename}...`);
+
+            const opt = {
+                margin:       [0.5, 0.5],
+                filename:     filename,
+                image:        { type: 'jpeg', quality: 0.98 },
+                html2canvas:  { scale: 2, useCORS: true, backgroundColor: '#ffffff' },
+                jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' }
+            };
+
+            // Wrap in a div to guarantee background and width during string render
+            const finalHtml = `
+                <div style="background-color: #ffffff; width: 100%; box-sizing: border-box;">
+                    ${htmlContent}
+                </div>
+            `;
+
+            setTimeout(() => {
+                html2pdf().set(opt).from(finalHtml).save().then(() => {
+                    showToast(`Downloaded ${filename} successfully.`);
+                }).catch(err => {
+                    console.error("PDF generation error: ", err);
+                    showToast("Error generating PDF.");
+                });
+            }, 800);
+        }
+
+        function downloadRealFile(filename, content, type) {
+            if(type === 'application/pdf') {
+                // Fallback to basic text generation if not using beautiful templates directly
+                const basicHtml = `<div style="padding:40px; font-family:sans-serif; line-height:1.6;">${content.replace(/\n/g, '<br>')}</div>`;
+                generateAttractivePDF(filename, basicHtml);
+            } else {
+                showToast(`Generating ${filename}...`);
+                const blob = new Blob([content], { type: type });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                showToast(`Downloaded ${filename} successfully.`);
+            }
+        }
+
+        function downloadReport(type, filename) {
+            let content = pdfTemplates[type] || 'Report Content Missing';
+            // If the template is a function (like invoice that needs live data), execute it
+            if (typeof content === 'function') content = content();
+            generateAttractivePDF(filename, content);
+        }
+
+        function printDocument(title, contentHTML) {
+            document.getElementById('print-area').innerHTML = `
+                <div class="max-w-2xl mx-auto border-2 border-slate-200 p-10 m-10 rounded-2xl">
+                    <div class="text-center mb-8 border-b-2 border-slate-200 pb-6"><h1 class="text-4xl font-black text-slate-900 tracking-tight mb-2">ApexCare Enterprise</h1><p class="text-xl font-medium text-slate-500">${title}</p></div>
+                    <div class="text-slate-800">${contentHTML}</div>
+                    <div class="mt-12 pt-6 border-t-2 border-slate-200 text-center text-sm font-medium text-slate-400">System Generated | Printed: ${new Date().toLocaleString()}</div>
+                </div>`;
+            setTimeout(() => { window.print(); }, 100);
+        }
+
+        function handleContactSubmit(e) {
+            e.preventDefault();
+            const subject = document.getElementById('contact-subject').value;
+            const message = document.getElementById('contact-message').value;
+            showToast('Opening default mail client...');
+            setTimeout(() => {
+                window.location.href = `mailto:usamazakir5033@gmail.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(message)}`;
+            }, 500);
+        }
+
+        function handlePatientLogin(e) {
+            e.preventDefault();
+            currentUser = { role: 'patient', name: 'Emma Watson' };
+            showToast('Login successful! Welcome to the portal.');
+            navigate('patient');
+        }
+
+        function handlePatientSignup(e) {
+            e.preventDefault();
+            showToast('Account created successfully! Please log in.');
+            navigate('login-patient');
+        }
+
+        function handleStaffLogin(e) {
+            e.preventDefault();
+            const role = document.getElementById('staff-role-select').value;
+            const staffId = document.getElementById('staff-id-input').value || 'Staff';
+            currentUser = { role: role, name: staffId };
+            showToast(`Authentication successful for role: ${role.toUpperCase()}`);
+            navigate(role);
+        }
+
+        function handleLogout() {
+            currentUser = null;
+            showToast("You have securely logged out.");
+            navigate('landing');
+        }
+
+        function updatePublicNavbarAuth() {
+            const authContainer = document.getElementById('public-nav-auth');
+            if (!authContainer) return;
+            
+            if (currentUser) {
+                const targetDash = currentUser.role === 'patient' ? 'patient' : currentUser.role;
+                authContainer.innerHTML = `
+                    <span class="text-sm font-bold text-slate-700 mr-4 hidden md:inline">Hi, ${currentUser.name}</span>
+                    <button onclick="navigate('${targetDash}')" class="px-4 py-2 text-blue-600 bg-blue-50 rounded-lg text-sm font-bold mr-2 hover:bg-blue-100 transition-colors">My Portal</button>
+                    <button onclick="handleLogout()" class="px-4 py-2 bg-rose-600 text-white rounded-lg text-sm font-bold shadow hover:bg-rose-700 transition-colors">Logout</button>
+                `;
+            } else {
+                authContainer.innerHTML = `
+                    <button onclick="navigate('login-patient')" class="px-4 py-2 text-blue-600 bg-blue-50 rounded-lg text-sm font-bold mr-2 hover:bg-blue-100 transition-colors">Patients</button>
+                    <button onclick="navigate('login-staff')" class="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-bold shadow hover:bg-blue-700 transition-colors">Staff Portal</button>
+                `;
+            }
+        }
+
+        // MODAL HANDLERS
+        function showAddPatientModal() {
+            openModal('Register New Patient', `
+                <div class="space-y-3">
+                    <div><label class="text-xs font-bold text-slate-500">Full Name</label><input type="text" class="w-full border p-2 rounded focus:border-blue-500 outline-none"></div>
+                    <div><label class="text-xs font-bold text-slate-500">Phone</label><input type="text" class="w-full border p-2 rounded focus:border-blue-500 outline-none"></div>
+                    <div><label class="text-xs font-bold text-slate-500">Gender</label><select class="w-full border p-2 rounded"><option>Male</option><option>Female</option></select></div>
+                </div>
+            `, 'Register Patient', () => showToast('New patient registered successfully in database.'));
+        }
+
+        function showAddDoctorModal() {
+            openModal('Add New Doctor', `
+                <div class="space-y-3">
+                    <input type="text" placeholder="Dr. Full Name" class="w-full border p-2 rounded">
+                    <select class="w-full border p-2 rounded"><option>Cardiology</option><option>Neurology</option><option>Orthopedics</option></select>
+                    <input type="text" placeholder="License Number" class="w-full border p-2 rounded">
+                </div>
+            `, 'Add Doctor', () => showToast('Doctor profile created and roles assigned.'));
+        }
+
+        function showAddNurseModal() {
+            openModal('Add New Nurse', `<input type="text" placeholder="Full Name" class="w-full border p-2 rounded mb-3"><select class="w-full border p-2 rounded"><option>ICU Wing</option><option>General Ward</option><option>ER</option></select>`, 'Add Nurse', () => showToast('Nurse added to staff roster.'));
+        }
+
+        function showAddWardModal() {
+            openModal('Create New Ward', `<input type="text" placeholder="Ward Name (e.g. Wing B)" class="w-full border p-2 rounded mb-3"><input type="number" placeholder="Total Bed Capacity" class="w-full border p-2 rounded">`, 'Create Ward', () => showToast('New ward generated and mapped to system.'));
+        }
+
+        function showAddMedicineModal() {
+            openModal('Add Medicine to Inventory', `
+                <input placeholder="Drug Name (e.g. Ibuprofen)" class="w-full border p-2 mb-3 rounded">
+                <input placeholder="Quantity/Stock" class="w-full border p-2 mb-3 rounded" type="number">
+                <input placeholder="Price per unit ($)" class="w-full border p-2 rounded" type="number">
+            `, 'Add to Inventory', () => showToast('Medicine added to central inventory.'));
+        }
+
+        function viewPrescription() {
+            openModal('Active Prescription', `
+                <div class="font-mono bg-slate-50 p-4 rounded border text-sm text-slate-700">
+                    <p class="font-bold mb-2 pb-2 border-b">Dr. Sarah Smith</p>
+                    <ul class="list-disc pl-5 space-y-1">
+                        <li>Paracetamol 500mg (1 tablet every 8 hours)</li>
+                        <li>Amoxicillin 250mg (1 capsule twice daily)</li>
+                    </ul>
+                </div>
+            `, 'Close', null);
+        }
+
+        function promptPromoteDoctor() {
+            openModal('Promote Doctor Rank', `<label class="text-xs font-bold text-slate-500">Select Doctor</label><select class="w-full border p-2 rounded mb-3 mt-1"><option>Dr. Sarah Smith</option><option>Dr. John Adams</option></select><label class="text-xs font-bold text-slate-500">New Rank</label><select class="w-full border p-2 rounded mt-1"><option>Senior Consultant</option><option>HOD</option></select>`, 'Promote', () => showToast('Doctor promoted successfully.'));
+        }
+        function promptPromoteNurse() {
+            openModal('Promote Nurse Rank', `<select class="w-full border p-2 rounded mb-3"><option>N. Sarah</option></select><select class="w-full border p-2 rounded"><option>Head Nurse</option><option>ICU Charge Nurse</option></select>`, 'Promote', () => showToast('Nurse rank updated.'));
+        }
+        function promptAssignHOD() {
+            openModal('Assign HOD', `<select class="w-full border p-2 rounded mb-3"><option>Cardiology</option></select><select class="w-full border p-2 rounded"><option>Dr. Sarah Smith</option></select>`, 'Assign Role', () => showToast('HOD role assigned.'));
+        }
+
+        let currentLabBtn = null;
+        function promptLabValues(btn) {
+            currentLabBtn = btn;
+            openModal('Enter Lab Results', `
+                <textarea id="lab-input-val" class="w-full border p-2 rounded h-24 outline-none focus:border-blue-500" placeholder="Enter test results & reference values..."></textarea>
+            `, 'Save Results', () => {
+                showToast('Lab results saved to database.');
+                if(currentLabBtn) handleLabProcess(currentLabBtn);
+            });
+        }
+
+        function promptEstimate() {
+            openModal('Calculate Treatment Estimate', `<input type="text" class="w-full border p-2 rounded" placeholder="Enter Treatment Code (e.g. SURG-01)">`, 'Calculate', () => showToast('Estimated Cost Generated: $4,500.00'));
+        }
+        function promptRefund() {
+            openModal('Process Refund', `<input type="number" class="w-full border p-2 rounded" placeholder="Enter Amount to Refund ($)">`, 'Apply Refund', () => showToast('Refund transaction initiated securely.'));
+        }
+        function promptDiscount() {
+            openModal('Apply Bill Discount', `<input type="number" class="w-full border p-2 rounded" placeholder="Enter discount percentage (%)">`, 'Apply', () => {
+                showToast('Discount applied. Recalculating totals...');
+                const current = sysState.billingTotal;
+                sysState.billingTotal = current * 0.9;
+                document.getElementById('billing-total').innerText = '$' + sysState.billingTotal.toFixed(2);
+            });
+        }
+        function promptTreatmentPlan() {
+            openModal('ER Treatment Plan', `<textarea class="w-full border p-2 rounded h-24" placeholder="Enter immediate ER actions..."></textarea>`, 'Create Plan', () => showToast('Emergency treatment plan active.'));
+        }
+        
+        let currentVitalsBtn = null;
+        function promptERVitals(btn) {
+            currentVitalsBtn = btn;
+            openModal('Record Initial Vitals', `<input type="text" id="er-vitals-in" class="w-full border p-2 rounded" placeholder="e.g. BP: 160/100, HR: 110" value="BP: 160/100, HR: 110">`, 'Save Vitals', () => {
+                const v = document.getElementById('er-vitals-in').value;
+                if(currentVitalsBtn) {
+                    currentVitalsBtn.innerText = 'Vitals Logged';
+                    currentVitalsBtn.className = 'w-full bg-blue-100 text-blue-800 py-2.5 rounded font-bold text-xs mb-2 transition-colors';
+                }
+                showToast('Vitals updated: ' + v);
+            });
+        }
+
+        function promptShiftNotes() {
+            openModal('Shift Handover Notes', `<textarea class="w-full border p-2 rounded h-24" placeholder="Enter end of shift observations..."></textarea>`, 'Submit Notes', () => showToast('Shift handover logged successfully.'));
+        }
+        function promptNurseNotes() {
+            openModal('Patient Nursing Notes', `<textarea class="w-full border p-2 rounded h-24" placeholder="Enter daily observations..."></textarea>`, 'Save Note', () => showToast('Patient chart updated with nursing notes.'));
+        }
+        function promptAssignSurgeon() {
+            openModal('OT Assignment', `<select class="w-full border p-2 rounded mb-2"><option>Dr. Adams (Orthopedics)</option></select><select class="w-full border p-2 rounded"><option>OT Staff Group B</option></select>`, 'Confirm OT Schedule', () => showToast('Surgeon & Staff assigned to 02:30 PM slot.'));
+        }
+        function promptOpNotes() {
+            openModal('Post-Op Notes', `<textarea class="w-full border p-2 rounded h-32" placeholder="Record surgical findings and recovery status..."></textarea>`, 'Save Operation Notes', () => showToast('Post-op notes linked to patient medical record.'));
+        }
+        function promptICUNotes(role) {
+            openModal(`${role} ICU Note`, `<textarea class="w-full border p-2 rounded h-24" placeholder="Enter clinical observations..."></textarea>`, `Add ${role} Note`, () => showToast(`${role} note securely added to ICU telemetry log.`));
+        }
+
+        function startScanSequence(btn, type) {
+            btn.innerHTML = '<i data-lucide="loader" class="w-4 h-4 mr-2 inline animate-spin pointer-events-none"></i> Scanning';
+            btn.classList.replace('bg-amber-600', 'bg-slate-700');
+            btn.classList.replace('hover:bg-amber-500', 'hover:bg-slate-600');
+            if(type === 'MRI') {
+                btn.classList.replace('bg-indigo-600', 'bg-slate-700');
+                btn.classList.replace('hover:bg-indigo-700', 'hover:bg-slate-600');
+            }
+            lucide.createIcons({ root: btn.parentElement });
+            
+            setTimeout(() => {
+                btn.innerHTML = '<i data-lucide="check" class="w-4 h-4 mr-2 inline pointer-events-none"></i> Sequence Complete';
+                btn.className = 'bg-emerald-600 text-white px-6 py-2 rounded font-bold text-sm shadow cursor-default';
+                lucide.createIcons({ root: btn.parentElement });
+                showToast(`${type} Scan completed. High-res imagery saved to local server.`);
+            }, 2500);
+        }
+
+        // SMART WORKFLOW LOGIC
+        function orderTest(testName, destinationType) {
+            showToast(`${testName} ordered. Automatically sent to ${destinationType.toUpperCase()} queue.`);
+            
+            if(destinationType === 'lab') {
+                sysState.labTotal++;
+                document.getElementById('lab-pending-count').innerText = sysState.labTotal;
+                
+                const tr = document.createElement('tr');
+                tr.className = 'border-b transition-colors bg-amber-50/30';
+                tr.innerHTML = `
+                    <td class="p-3"><p class="font-bold">Emma Watson</p><p class="text-xs text-slate-500">Dr. Smith</p></td>
+                    <td class="p-3 font-medium">${testName}</td>
+                    <td class="p-3"><button class="text-xs text-blue-600 underline font-medium hover:text-blue-800" onclick="promptLabValues(this)">Enter Values</button></td>
+                    <td class="p-3"><span class="px-2 py-1 bg-amber-100 text-amber-700 rounded-full text-xs font-bold">Pending Sample</span></td>
+                    <td class="p-3 text-right"><button onclick="handleLabProcess(this)" class="bg-blue-600 text-white px-3 py-1.5 rounded text-xs font-bold shadow hover:bg-blue-700 transition-colors">Process & Auto-Report</button></td>
+                `;
+                document.getElementById('lab-queue-tbody').appendChild(tr);
+                sysState.billingTotal += 25.00;
+                updateBillingRow('Laboratory Charges (Auto-Synced)', 25.00);
+            } else {
+                const tr = document.createElement('tr');
+                tr.className = 'border-b hover:bg-slate-50 transition-colors';
+                tr.innerHTML = `
+                    <td class="p-3 font-bold text-xs">Emma Watson</td>
+                    <td class="p-3"><span class="bg-slate-200 px-2 py-0.5 rounded text-xs font-bold uppercase">${destinationType}</span></td>
+                    <td class="p-3 font-medium text-xs">${testName}</td>
+                    <td class="p-3"><button class="text-xs border px-2 py-1 rounded hover:bg-slate-100 font-bold text-slate-600" onclick="openModal('Schedule Scan', '<input type=\\'datetime-local\\' class=\\'w-full border p-2 rounded\\'>', 'Schedule', () => showToast('Scan Scheduled'))">Schedule Scan</button></td>
+                    <td class="p-3 text-right text-xs text-blue-600 font-bold cursor-pointer hover:underline" onclick="navigate('${destinationType === 'rad' ? 'radiology' : destinationType}')">Open Dept Console</td>
+                `;
+                const tbody = document.getElementById('imaging-queue-tbody');
+                if(tbody.innerText.includes('No pending')) tbody.innerHTML = '';
+                tbody.appendChild(tr);
+                
+                let counter = document.getElementById(`${destinationType}-q-count`);
+                if(counter) counter.innerText = "Requests: 1";
+
+                sysState.billingTotal += 150.00;
+                updateBillingRow(`Radiology: ${testName} (Auto-Synced)`, 150.00);
+            }
+        }
+
+        function prescribeMed() {
+            const input = document.getElementById('rx-input');
+            const med = input.value;
+            if(!med) return;
+            
+            const liDoc = document.createElement('li');
+            liDoc.innerText = "• " + med;
+            document.getElementById('rx-list').appendChild(liDoc);
+            
+            const pharList = document.getElementById('pharmacy-queue-list');
+            const liPhar = document.createElement('li');
+            liPhar.className = 'p-4 flex flex-col gap-3 hover:bg-slate-50 transition-colors border-t border-slate-100';
+            liPhar.innerHTML = `
+                <div class="flex justify-between">
+                    <div><p class="font-bold text-lg">Emma Watson</p><p class="text-xs text-slate-500">Dr. Sarah Smith (Just Added)</p></div>
+                    <span class="bg-amber-100 text-amber-700 text-xs px-2 py-1 rounded font-bold h-fit blink">New Order</span>
+                </div>
+                <div class="bg-slate-50 p-2 rounded text-sm font-mono border text-slate-700">Rx: ${med}</div>
+                <div class="flex justify-between items-center mt-2">
+                    <button class="text-xs font-bold text-slate-600 border px-3 py-1.5 rounded hover:bg-slate-50 transition-colors">Print</button>
+                    <button onclick="handleDispenseAndBill(this, 15.00, '${med}')" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded shadow text-sm font-bold transition-colors">Dispense & Send to Billing</button>
+                </div>
+            `;
+            pharList.insertBefore(liPhar, pharList.firstChild);
+            
+            input.value = '';
+            showToast('Prescription saved and sent directly to Pharmacy Database.');
+        }
+
+        function completeConsult() {
+            showToast('Consultation Complete. All orders securely logged in system.');
+            document.getElementById('rx-list').innerHTML = '';
+        }
+
+        function handleDispenseAndBill(btn, cost, itemDesc="Pharmacy Medicines") {
+            btn.closest('li').style.opacity = '0.5';
+            btn.innerHTML = 'Dispensed';
+            btn.className = 'px-4 py-2 bg-emerald-50 text-emerald-700 rounded-lg text-sm font-bold';
+            btn.disabled = true;
+            showToast(`Medicines dispensed. Inventory reduced. Added $${cost} to patient's billing.`);
+            sysState.billingTotal += cost;
+            updateBillingRow(`${itemDesc} (Dispensed)`, cost);
+        }
+
+        function updateBillingRow(desc, amt) {
+            const tbody = document.getElementById('billing-items-tbody');
+            tbody.innerHTML += `
+                <tr class="border-b bg-amber-50/20">
+                    <td class="py-3 text-sm font-medium pl-2">${desc}</td>
+                    <td class="text-right text-sm font-medium text-slate-700">$${amt.toFixed(2)}</td>
+                </tr>
+            `;
+            document.getElementById('billing-total').innerText = '$' + sysState.billingTotal.toFixed(2);
+        }
+
+        function handlePrintToken() {
+            const type = document.getElementById('rec-type').value;
+            const dept = document.getElementById('rec-dept').value;
+            const tokenNum = dept.charAt(0).toUpperCase() + '-' + Math.floor(Math.random() * 900 + 100);
+            
+            printDocument('Patient Token', `
+                <div style="text-align: center; padding: 2rem 0;">
+                    <p style="font-size: 1.25rem; font-weight: bold; color: #475569; margin-bottom: 0.5rem;">${dept}</p>
+                    <p style="color: #64748b; margin-bottom: 2rem;">${type}</p>
+                    <div style="background: #f8fafc; border: 4px dashed #cbd5e1; border-radius: 1rem; padding: 2rem; display: inline-block;">
+                        <h1 style="font-size: 5rem; font-weight: 900; line-height: 1; letter-spacing: -0.05em; color: #0f172a; margin: 0;">${tokenNum}</h1>
+                    </div>
+                    <p style="margin-top: 2rem; font-size: 1.125rem; color: #334155;">Please wait in the designated waiting area.</p>
+                </div>
+            `);
+        }
+
+        function handleCallNext() {
+            const display = document.getElementById('opd-current-token');
+            const currentNum = parseInt(display.innerText.split('-')[1]);
+            const nextToken = 'A-' + (currentNum + 1);
+            display.classList.add('scale-110', 'text-emerald-400');
+            setTimeout(() => {
+                display.innerText = nextToken;
+                display.classList.remove('scale-110', 'text-emerald-400');
+                showToast(`Announcing ${nextToken} on PA System...`);
+            }, 300);
+        }
+
+        function handleRecall() {
+            const display = document.getElementById('opd-current-token');
+            showToast(`Recalling Token ${display.innerText} on PA System...`);
+        }
+
+        function handleLabProcess(btn) {
+            const tr = btn.closest('tr');
+            tr.children[3].innerHTML = '<span class="px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-bold">Processing</span>';
+            btn.outerHTML = `<button onclick="handleLabUpload(this)" class="text-emerald-600 font-bold hover:underline text-xs">Upload PDF Report</button>`;
+            showToast('Sample processing. Analyzing values...');
+        }
+
+        function handleLabUpload(btn) {
+            btn.closest('tr').children[3].innerHTML = '<span class="px-2 py-1 bg-emerald-100 text-emerald-700 rounded-full text-xs font-bold">Complete</span>';
+            btn.outerHTML = `<span class="text-slate-400 text-xs font-bold">Published</span>`;
+            sysState.labTotal--;
+            document.getElementById('lab-pending-count').innerText = sysState.labTotal;
+            showToast('Auto-generated Report published to Patient Portal & Doctor Dashboard.');
+        }
+
+        function handleAssignBed(btn, bedCode) {
+            btn.innerText = `Assigned (${bedCode})`;
+            btn.className = 'w-full bg-emerald-100 text-emerald-800 py-2 rounded font-bold text-xs transition-colors';
+            btn.disabled = true;
+            showToast(`System automated: ER Patient assigned to ICU Bed ${bedCode}. Ward status updated.`);
+        }
+
+        function handleNurseAction(btn, type) {
+            if(type === 'meds') {
+                btn.innerText = 'Administered';
+                btn.className = 'px-2.5 py-1.5 bg-emerald-100 text-emerald-700 rounded text-xs font-bold transition-colors';
+                showToast('Medication log recorded in patient timeline.');
+            } else {
+                openModal('Record Vitals', '<input id="modal-nurse-vital" class="w-full border p-2 rounded" placeholder="BP, Temp, HR...">', 'Save Vitals', () => {
+                    if(document.getElementById('modal-nurse-vital').value) {
+                        btn.innerText = 'Logged';
+                        btn.className = 'px-2.5 py-1.5 bg-emerald-100 text-emerald-700 rounded text-xs font-bold transition-colors';
+                        showToast('Vitals recorded to chart.');
+                    }
+                });
+            }
+        }
+
+        function handleBedDetails(bedNum, status, date, action) {
+            if(status === 'Available') {
+                openModal(`Admit to Bed ${bedNum}`, `<p class="mb-2">Are you sure you want to assign a new patient to <b>Bed ${bedNum}</b>?</p>`, 'Admit Patient', () => {
+                    showToast(`Admission generated. Bed ${bedNum} marked occupied.`);
+                });
+            } else {
+                openModal(`Bed ${bedNum} Records`, `
+                    <div class="space-y-2 text-sm text-slate-700">
+                        <p><strong>Status:</strong> ${status}</p>
+                        <p><strong>Admitted:</strong> ${date}</p>
+                        <p><strong>Action Required:</strong> ${action}</p>
+                    </div>
+                `, 'Close', null);
+            }
+        }
+
+        function selectPayment(btn) {
+            btn.parentElement.querySelectorAll('button').forEach(b => {
+                b.className = 'py-2.5 border-2 border-slate-200 rounded-lg font-bold hover:border-blue-500 text-sm transition-colors';
+            });
+            btn.className = 'py-2.5 border-2 border-blue-500 bg-blue-50 text-blue-700 rounded-lg font-bold text-sm transition-colors';
+        }
+
+        function handlePrintReceipt() {
+            downloadReport('invoice', 'Invoice_INV-2026-991.pdf'); // Reuse the new styled invoice for printing
+        }
+
+        // =========================================================
+        // FULLY SEPARATED RBAC NAVIGATION ENGINE
+        // =========================================================
+        
+        // Define role permissions matrix
+        const rolePermissions = {
+            'patient': ['patient'],
+            'admin': views.map(v => v.id), // Access to everything
+            'superadmin': views.map(v => v.id),
+            'doctor': ['doctor'],
+            'nurse': ['nurse', 'ward', 'icu'],
+            'reception': ['reception', 'opd'],
+            'pharmacy': ['pharmacy'],
+            'finance': ['finance', 'reports'],
+            'laboratory': ['laboratory'],
+            'radiology': ['radiology', 'ct', 'mri'],
+            'emergency': ['emergency']
+        };
+
+        function navigate(viewId) {
+            window.location.hash = viewId;
+        }
+
+        function handleHashChange() {
+            const hash = window.location.hash.substring(1) || 'landing';
+
+            const pubLayout = document.getElementById('public-layout');
+            const authLayout = document.getElementById('auth-layout');
+            const dashLayout = document.getElementById('dashboard-layout');
+
+            // Hide all layouts initially
+            [pubLayout, authLayout, dashLayout].forEach(layout => {
+                layout.classList.add('hidden');
+                layout.classList.remove('flex');
+            });
+
+            // Deactivate all views
+            document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
+
+            const publicViews = ['landing', 'departments', 'contact'];
+            const authViews = ['login-patient', 'signup-patient', 'login-staff'];
+
+            if (publicViews.includes(hash)) {
+                // Show Public Layout
+                pubLayout.classList.remove('hidden');
+                pubLayout.classList.add('flex');
+                
+                // Update Public Navbar Status
+                updatePublicNavbarAuth();
+
+                // Highlight active nav link
+                publicViews.forEach(id => {
+                    const el = document.getElementById('nav-pub-' + id);
+                    if(el) {
+                        if(id === hash) {
+                            el.classList.add('text-blue-600', 'font-bold');
+                            el.classList.remove('text-slate-600');
+                        } else {
+                            el.classList.remove('text-blue-600', 'font-bold');
+                            el.classList.add('text-slate-600');
+                        }
+                    }
+                });
+
+            } else if (authViews.includes(hash)) {
+                // Show Auth Layout
+                authLayout.classList.remove('hidden');
+                authLayout.classList.add('flex');
+            } else {
+                // Protected Dashboard Views (RBAC Enforcement)
+                if (!currentUser) {
+                    showToast("Authentication required. Please sign in to access this portal.");
+                    navigate('login-patient');
+                    return;
+                }
+
+                const allowedViews = rolePermissions[currentUser.role] || [];
+                if (!allowedViews.includes(hash)) {
+                    showToast("Access Denied. You do not have permission to view this page.");
+                    navigate(allowedViews[0] || 'landing'); // Send to their allowed dashboard
+                    return;
+                }
+
+                dashLayout.classList.remove('hidden');
+                dashLayout.classList.add('flex');
+
+                // Update Dashboard Sidebar UI based on Permissions
+                document.querySelectorAll('.nav-btn').forEach(btn => {
+                    const btnViewId = btn.id.replace('nav-', '');
+                    
+                    // Hide unallowed items from sidebar entirely
+                    if(allowedViews.includes(btnViewId)) {
+                        btn.style.display = 'flex';
+                        btn.classList.remove('bg-blue-600', 'text-white', 'hover:bg-blue-600');
+                        btn.classList.add('text-slate-400', 'hover:bg-slate-800');
+                    } else {
+                        btn.style.display = 'none';
+                    }
+                });
+                
+                const activeBtn = document.getElementById(`nav-${hash}`);
+                if(activeBtn) {
+                    activeBtn.classList.remove('text-slate-400', 'hover:bg-slate-800');
+                    activeBtn.classList.add('bg-blue-600', 'text-white', 'hover:bg-blue-600');
+                }
+
+                const viewConfig = views.find(v => v.id === hash);
+                document.getElementById('current-dashboard-title').innerText = (viewConfig ? viewConfig.label.split('. ')[1] : 'Dashboard') + " Workspace";
+            }
+
+            // Activate specific view inside the layout
+            const target = document.getElementById(hash);
+            if(target) target.classList.add('active');
+
+            // Handle mobile sidebar auto-close
+            const sidebar = document.getElementById('app-sidebar');
+            if (window.innerWidth < 768 && !sidebar.classList.contains('hidden') && !publicViews.includes(hash) && !authViews.includes(hash)) {
+                toggleSidebar();
+            }
+
+            // Reset scrolling flawlessly
+            window.scrollTo(0, 0);
+            if(document.getElementById('public-layout').classList.contains('flex')) document.getElementById('public-layout').scrollTop = 0;
+            if(document.getElementById('auth-layout').classList.contains('flex')) document.getElementById('auth-layout').scrollTop = 0;
+            document.getElementById('main-content').scrollTop = 0;
+        }
+
+        window.addEventListener('hashchange', handleHashChange);
+
+        function toggleSidebar() {
+            const sidebar = document.getElementById('app-sidebar');
+            sidebar.classList.toggle('hidden');
+            if(!sidebar.classList.contains('hidden')) sidebar.classList.add('absolute', 'left-0', 'top-0', 'bottom-0', 'z-50', 'w-64');
+            else sidebar.classList.remove('absolute', 'left-0', 'top-0', 'bottom-0', 'z-50', 'w-64');
+        }
+
+        // --- AI CHATBOT LOGIC ---
+        let chatVisible = false;
+        
+        // Environment handles exact Key internally upon network request execution dynamically. 
+        const apiKey = ""; 
+        
+        function toggleChatbot() {
+            chatVisible = !chatVisible;
+            const win = document.getElementById('chatbot-window');
+            if (chatVisible) {
+                win.classList.add('chat-open');
+                setTimeout(() => document.getElementById('chatbot-input').focus(), 300);
+            } else {
+                win.classList.remove('chat-open');
+            }
+        }
+
+        function handleChatKeypress(e) {
+            if (e.key === 'Enter') sendChatMessage();
+        }
+
+        function addMessageToChat(text, isUser) {
+            const msgBox = document.getElementById('chatbot-messages');
+            const div = document.createElement('div');
+            
+            if (isUser) {
+                div.className = "bg-blue-600 text-white p-3 rounded-xl rounded-tr-none self-end shadow-sm max-w-[85%]";
+            } else {
+                div.className = "bg-white border border-slate-200 text-slate-700 p-3 rounded-xl rounded-tl-none self-start shadow-sm max-w-[85%]";
+            }
+            
+            div.innerText = text;
+            msgBox.appendChild(div);
+            msgBox.scrollTop = msgBox.scrollHeight;
+        }
+
+        function showTypingIndicator() {
+            const msgBox = document.getElementById('chatbot-messages');
+            const div = document.createElement('div');
+            div.id = 'chat-typing-indicator';
+            div.className = "bg-white border border-slate-200 p-3 rounded-xl rounded-tl-none self-start shadow-sm flex items-center gap-1 max-w-[85%]";
+            div.innerHTML = `<div class="w-1.5 h-1.5 bg-slate-400 rounded-full typing-dot"></div><div class="w-1.5 h-1.5 bg-slate-400 rounded-full typing-dot"></div><div class="w-1.5 h-1.5 bg-slate-400 rounded-full typing-dot"></div>`;
+            msgBox.appendChild(div);
+            msgBox.scrollTop = msgBox.scrollHeight;
+        }
+
+        function removeTypingIndicator() {
+            const indicator = document.getElementById('chat-typing-indicator');
+            if(indicator) indicator.remove();
+        }
+
+        async function fetchGeminiResponse(userText, retries = 5) {
+            const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+            const payload = {
+                contents: [{ parts: [{ text: userText }] }],
+                systemInstruction: { parts: [{ text: "You are ApexCare Assistant, a friendly and helpful AI chatbot for a hospital management system. Help patients navigate the site, understand hospital departments, and provide general non-medical support. Keep your responses very brief, concise, and professional." }] }
+            };
+
+            const delays = [1000, 2000, 4000, 8000, 16000];
+
+            for (let i = 0; i < retries; i++) {
+                try {
+                    const response = await fetch(endpoint, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    if (!response.ok) throw new Error('API Error');
+                    const data = await response.json();
+                    return data.candidates?.[0]?.content?.parts?.[0]?.text || "I'm sorry, I couldn't process that response.";
+                } catch (err) {
+                    if (i === retries - 1) return "Sorry, our AI service is currently unavailable. Please contact us via the Contact Page.";
+                    await new Promise(res => setTimeout(res, delays[i]));
+                }
+            }
+        }
+
+        async function sendChatMessage() {
+            const input = document.getElementById('chatbot-input');
+            const text = input.value.trim();
+            if (!text) return;
+            
+            // Render User Message
+            addMessageToChat(text, true);
+            input.value = '';
+            input.disabled = true;
+            
+            showTypingIndicator();
+
+            // Fetch Gemini AI Response
+            const botResponse = await fetchGeminiResponse(text);
+            
+            removeTypingIndicator();
+            addMessageToChat(botResponse, false);
+            input.disabled = false;
+            input.focus();
+        }
+
+        // Init
+        document.addEventListener('DOMContentLoaded', () => {
+            lucide.createIcons();
+            // Handle URL load logic
+            if(!window.location.hash) {
+                navigate('landing');
+            } else {
+                handleHashChange();
+            }
+        });
+
+    </script>
+</body>
+</html>
